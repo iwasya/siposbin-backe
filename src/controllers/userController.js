@@ -1,0 +1,116 @@
+const bcrypt = require('bcrypt');
+const supabase = require('../config/supabase');
+
+exports.createKader = async (req, res) => {
+  try {
+    const { nama, email, password, id_posbindu } = req.body;
+
+    if (!nama || !email || !password) {
+      return res.status(400).json({ message: "Data tidak lengkap" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const { data, error } = await supabase
+      .from('users')
+      .insert([
+        {
+          nama,
+          email,
+          password: hashedPassword,
+          id_role: 2, // 🔥 KADER
+          id_posbindu
+        }
+      ])
+      .select();
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    res.status(201).json({
+      message: "Kader berhasil dibuat",
+      data
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    let { page = 1, limit = 10, search = "" } = req.query;
+
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabase
+      .from('users')
+      .select('id_user, nama, email, id_role, id_posbindu', { count: 'exact' })
+      .range(from, to);
+
+    if (search) {
+      query = query.ilike('nama', `%${search}%`);
+    }
+
+    const { data, error, count } = await query;
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    res.json({
+      page,
+      limit,
+      total: count,
+      total_pages: Math.ceil(count / limit),
+      data
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id_user', id);
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    res.json({ message: "User berhasil dihapus" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.resetUserPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { new_password } = req.body;
+
+    if (!new_password) {
+      return res.status(400).json({ message: "Password baru wajib diisi" });
+    }
+
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    const { error } = await supabase
+      .from('users')
+      .update({ password: hashedPassword })
+      .eq('id_user', id);
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    res.json({ message: "Password berhasil direset" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
