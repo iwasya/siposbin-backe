@@ -1,17 +1,16 @@
 const supabase = require('../config/supabase');
 
-
 /* =================================
    CREATE PEMERIKSAAN
 ================================= */
 exports.createPemeriksaan = async (req, res) => {
   try {
     const {
-      sistolik,
-      diastolik,
-      gula_darah,
-      kolesterol,
-      asam_urat,
+      sistolik = 0,
+      diastolik = 0,
+      gula_darah = 0,
+      kolesterol = 0,
+      asam_urat = 0,
       berat_badan,
       tinggi_badan
     } = req.body;
@@ -19,14 +18,43 @@ exports.createPemeriksaan = async (req, res) => {
     const id_user = req.user.id;
 
     if (!berat_badan || !tinggi_badan) {
-      return res.status(400).json({ message: "Berat & tinggi badan wajib diisi" });
+      return res.status(400).json({
+        message: "Berat & tinggi badan wajib diisi"
+      });
     }
 
+    // ==============================
     // Hitung BMI
+    // ==============================
     const tinggiMeter = tinggi_badan / 100;
     const bmi = berat_badan / (tinggiMeter * tinggiMeter);
 
-    // Simpan pemeriksaan
+    // ==============================
+    // Tentukan Status
+    // ==============================
+    let status = "Normal";
+
+    if (
+      sistolik >= 140 ||
+      diastolik >= 90 ||
+      gula_darah >= 200 ||
+      kolesterol >= 240
+    ) {
+      status = "Risiko";
+    } else if (
+      sistolik >= 120 ||
+      diastolik >= 80 ||
+      gula_darah >= 140 ||
+      kolesterol >= 200
+    ) {
+      status = "Waspada";
+    }
+
+    const cleanStatus = status.trim();
+
+    // ==============================
+    // Simpan Pemeriksaan
+    // ==============================
     const { data: pemeriksaan, error: periksaError } = await supabase
       .from('pemeriksaan')
       .insert([{
@@ -40,57 +68,73 @@ exports.createPemeriksaan = async (req, res) => {
         berat_badan,
         tinggi_badan,
         bmi,
-        created_by: req.user.id
+        created_by: id_user
       }])
       .select()
       .single();
 
     if (periksaError) {
-      return res.status(400).json({ error: periksaError.message });
+      return res.status(400).json({
+        error: periksaError.message
+      });
     }
 
-    // Interpretasi otomatis
-    let status = "Normal";
-    let penjelasan = "Semua indikator dalam batas normal.";
-    let rekomendasi = "Pertahankan pola hidup sehat.";
+    // ==============================
+    // Simpan Interpretasi
+    // ==============================
+    await supabase
+      .from('interpretasi')
+      .insert([{
+        id_pemeriksaan: pemeriksaan.id_pemeriksaan,
+        status_kesehatan: cleanStatus
+      }]);
 
-    if (
-      sistolik >= 140 ||
-      diastolik >= 90 ||
-      gula_darah >= 200 ||
-      kolesterol >= 240
-    ) {
-      status = "Risiko";
-      penjelasan = "Beberapa indikator berada pada tingkat berbahaya.";
-      rekomendasi = "Segera konsultasi ke tenaga medis.";
-    } else if (
-      sistolik >= 120 ||
-      diastolik >= 80 ||
-      gula_darah >= 140 ||
-      kolesterol >= 200
-    ) {
-      status = "Waspada";
-      penjelasan = "Beberapa indikator mulai meningkat.";
-      rekomendasi = "Perbaiki pola makan dan aktivitas fisik.";
+    // ==============================
+    // Ambil Edukasi Recommended
+    // ==============================
+    const { data: recommended, error: recError } = await supabase
+      .from('edukasi')
+      .select('*')
+      .ilike('target_status', cleanStatus);
+
+    if (recError) {
+      return res.status(400).json({
+        error: recError.message
+      });
     }
 
-    await supabase.from('interpretasi').insert([{
-      id_pemeriksaan: pemeriksaan.id_pemeriksaan,
-      status_kesehatan: status,
-      penjelasan,
-      rekomendasi
-    }]);
+    // ==============================
+    // Ambil Edukasi Lainnya
+    // ==============================
+    const { data: allEdukasi, error: allError } = await supabase
+      .from('edukasi')
+      .select('*')
+      .not('target_status', 'ilike', cleanStatus);
 
+    if (allError) {
+      return res.status(400).json({
+        error: allError.message
+      });
+    }
+
+    // ==============================
+    // RESPONSE FINAL
+    // ==============================
     res.status(201).json({
       message: "Pemeriksaan berhasil disimpan",
-      status,
+      status_user: cleanStatus,
+      recommended: recommended || [],
+      all_edukasi: allEdukasi || [],
       pemeriksaan
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message
+    });
   }
 };
+
 
 
 /* =================================
@@ -98,17 +142,15 @@ exports.createPemeriksaan = async (req, res) => {
 ================================= */
 exports.getPemeriksaan = async (req, res) => {
   try {
-
     const userId = req.user.id;
 
-    const { data, error } = await supabase
+    // 1️⃣ Ambil pemeriksaan + status
+    const { data: pemeriksaan, error } = await supabase
       .from('pemeriksaan')
       .select(`
         *,
         interpretasi (
-          status_kesehatan,
-          penjelasan,
-          rekomendasi
+          status_kesehatan
         )
       `)
       .eq('id_user', userId)
@@ -118,12 +160,31 @@ exports.getPemeriksaan = async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    res.json(data);
+    // 2️⃣ Loop setiap pemeriksaan dan tambahkan edukasi
+    const result = await Promise.all(
+      pemeriksaan.map(async (item) => {
+        const status = item.interpretasi?.status_kesehatan;
+
+        // Ambil recommended
+        const { data: recommended } = await supabase
+          .from('edukasi')
+          .select('*')
+          .ilike('target_status', status);
+
+        return {
+          ...item,
+          recommended: recommended || []
+        };
+      })
+    );
+
+    res.json(result);
 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 /* =================================
@@ -154,12 +215,14 @@ exports.updatePemeriksaan = async (req, res) => {
         tinggi_badan
       })
       .eq('id_pemeriksaan', id)
-      .eq('id_user', req.user.id) // hanya boleh edit miliknya
+      .eq('id_user', req.user.id)
       .select()
       .single();
 
     if (error || !data) {
-      return res.status(400).json({ message: "Pemeriksaan tidak ditemukan" });
+      return res.status(400).json({
+        message: "Pemeriksaan tidak ditemukan"
+      });
     }
 
     res.json({
@@ -168,9 +231,12 @@ exports.updatePemeriksaan = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message
+    });
   }
 };
+
 
 
 /* =================================
@@ -187,12 +253,18 @@ exports.deletePemeriksaan = async (req, res) => {
       .eq('id_user', req.user.id);
 
     if (error) {
-      return res.status(400).json({ error: error.message });
+      return res.status(400).json({
+        error: error.message
+      });
     }
 
-    res.json({ message: "Pemeriksaan berhasil dihapus" });
+    res.json({
+      message: "Pemeriksaan berhasil dihapus"
+    });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message
+    });
   }
 };
