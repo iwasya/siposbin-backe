@@ -21,8 +21,8 @@ exports.register = async (req, res) => {
           nama,
           email,
           password: hashedPassword,
-          id_role: 3, // 🔥 otomatis peserta
-          id_posbindu
+          id_role: 3, // 
+          id_posbindu: 1
         }
       ])
       .select();
