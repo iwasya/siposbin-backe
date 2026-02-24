@@ -6,32 +6,50 @@ const transporter = require('../config/mailer');
 
 exports.register = async (req, res) => {
   try {
-    const { nama, email, password, id_posbindu } = req.body;
+    const { nama, email, password } = req.body;
 
     if (!nama || !email || !password) {
       return res.status(400).json({ message: "Data tidak lengkap" });
+    }
+
+    // Cek email sudah ada atau belum
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id_user')
+      .eq('email', email)
+      .single();
+
+    if (existingUser) {
+      return res.status(400).json({ message: "Email sudah terdaftar" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const { data, error } = await supabase
       .from('users')
-      .insert([
-        {
-          nama,
-          email,
-          password: hashedPassword,
-          id_role: 3, // 
-          id_posbindu: 1
-        }
-      ])
-      .select();
+      .insert([{
+        nama,
+        email,
+        password: hashedPassword,
+        id_role: 3,          // otomatis peserta
+        id_posbindu: 1       // otomatis posbindu 1
+      }])
+      .select()
+      .single();
 
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
 
     res.status(201).json({
-      message: 'User berhasil didaftarkan sebagai Peserta',
-      data
+      message: "User berhasil didaftarkan sebagai Peserta",
+      user: {
+        id_user: data.id_user,
+        nama: data.nama,
+        email: data.email,
+        id_role: data.id_role,
+        id_posbindu: data.id_posbindu
+      }
     });
 
   } catch (err) {
