@@ -4,8 +4,8 @@ exports.getEdukasi = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // 1️⃣ Ambil status terakhir user
-    const { data: lastCheck } = await supabase
+    // 1️⃣ Cek apakah user pernah pemeriksaan
+    const { data: lastCheck, error: checkError } = await supabase
       .from('pemeriksaan')
       .select(`
         interpretasi (
@@ -15,15 +15,39 @@ exports.getEdukasi = async (req, res) => {
       .eq('id_user', userId)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle(); // 🔥 pakai maybeSingle biar tidak error kalau kosong
 
-    let status = "Normal";
-
-    if (lastCheck && lastCheck.interpretasi) {
-      status = lastCheck.interpretasi.status_kesehatan;
+    if (checkError) {
+      return res.status(400).json({ error: checkError.message });
     }
 
-    // 2️⃣ Ambil recommended
+    // ===============================
+    // 🔥 KALAU BELUM ADA PEMERIKSAAN
+    // ===============================
+    if (!lastCheck || !lastCheck.interpretasi) {
+
+      const { data: allEdukasi, error } = await supabase
+        .from('edukasi')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      return res.json({
+        status_user: null,
+        recommended: [],
+        all_edukasi: allEdukasi || []
+      });
+    }
+
+    // ===============================
+    // 🔥 KALAU SUDAH ADA PEMERIKSAAN
+    // ===============================
+    const status = lastCheck.interpretasi.status_kesehatan;
+
+    // Ambil recommended
     const { data: recommended, error: recError } = await supabase
       .from('edukasi')
       .select('*')
@@ -34,10 +58,8 @@ exports.getEdukasi = async (req, res) => {
       return res.status(400).json({ error: recError.message });
     }
 
-    // Ambil ID yang sudah direkomendasikan
     const recommendedIds = recommended.map(item => item.id_edukasi);
 
-    // 3️⃣ Ambil semua edukasi KECUALI recommended
     let allQuery = supabase
       .from('edukasi')
       .select('*')

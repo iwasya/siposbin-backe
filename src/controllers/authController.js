@@ -6,9 +6,9 @@ const transporter = require('../config/mailer');
 
 exports.register = async (req, res) => {
   try {
-    const { nama, email, password } = req.body;
+    const { nama, email, password, id_posbindu } = req.body;
 
-    if (!nama || !email || !password) {
+    if (!nama || !email || !password || !id_posbindu) {
       return res.status(400).json({ message: "Data tidak lengkap" });
     }
 
@@ -17,10 +17,21 @@ exports.register = async (req, res) => {
       .from('users')
       .select('id_user')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (existingUser) {
       return res.status(400).json({ message: "Email sudah terdaftar" });
+    }
+
+    // Cek apakah posbindu valid
+    const { data: posbindu, error: posbinduError } = await supabase
+      .from('posbindu')
+      .select('id_posbindu, nama_posbindu')
+      .eq('id_posbindu', id_posbindu)
+      .single();
+
+    if (posbinduError || !posbindu) {
+      return res.status(400).json({ message: "Posbindu tidak ditemukan" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -31,8 +42,8 @@ exports.register = async (req, res) => {
         nama,
         email,
         password: hashedPassword,
-        id_role: 3,          // otomatis peserta
-        id_posbindu: 1       // otomatis posbindu 1
+        id_role: 3, // otomatis peserta
+        id_posbindu
       }])
       .select()
       .single();
@@ -48,7 +59,8 @@ exports.register = async (req, res) => {
         nama: data.nama,
         email: data.email,
         id_role: data.id_role,
-        id_posbindu: data.id_posbindu
+        id_posbindu: posbindu.id_posbindu,
+        nama_posbindu: posbindu.nama_posbindu
       }
     });
 
@@ -59,21 +71,30 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body; 
+    // field tetap "email" biar frontend gak perlu ubah
+    // tapi isinya bisa email atau no_hp
 
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email/No HP dan password wajib diisi" });
+    }
+
+    // Cari user berdasarkan email ATAU no_hp
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
-      .eq('email', email)
+      .or(`email.eq.${email},no_hp.eq.${email}`)
       .single();
 
-    if (error || !user)
-      return res.status(400).json({ message: 'User not found' });
+    if (error || !user) {
+      return res.status(400).json({ message: 'User tidak ditemukan' });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
-    if (!isMatch)
-      return res.status(400).json({ message: 'Invalid credentials' });
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Password salah' });
+    }
 
     const token = jwt.sign(
       { id: user.id_user, role: user.id_role },
@@ -81,7 +102,14 @@ exports.login = async (req, res) => {
       { expiresIn: '1d' }
     );
 
-    res.json({ token, user });
+    delete user.password;
+
+    res.json({
+      message: "Login berhasil",
+      token,
+      user
+    });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -9,7 +9,20 @@ exports.getProfile = async (req, res) => {
 
     const { data, error } = await supabase
       .from('users')
-      .select('id_user, nama, email, usia, jenis_kelamin, no_hp, alamat, foto_profil, id_role, id_posbindu')
+      .select(`
+        id_user,
+        nama,
+        email,
+        usia,
+        jenis_kelamin,
+        no_hp,
+        alamat,
+        foto_profil,
+        id_role,
+        posbindu (
+          nama_posbindu
+        )
+      `)
       .eq('id_user', userId)
       .single();
 
@@ -17,7 +30,19 @@ exports.getProfile = async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    res.json(data);
+    // Format ulang response supaya lebih rapi
+    res.json({
+      id_user: data.id_user,
+      nama: data.nama,
+      email: data.email,
+      usia: data.usia,
+      jenis_kelamin: data.jenis_kelamin,
+      no_hp: data.no_hp,
+      alamat: data.alamat,
+      foto_profil: data.foto_profil,
+      id_role: data.id_role,
+      nama_posbindu: data.posbindu?.nama_posbindu || null
+    });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -27,7 +52,7 @@ exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const { nama, usia, jenis_kelamin, no_hp, alamat, foto_profil } = req.body;
+    const { nama, usia, jenis_kelamin, no_hp, alamat } = req.body;
 
     const { data, error } = await supabase
       .from('users')
@@ -36,8 +61,7 @@ exports.updateProfile = async (req, res) => {
         usia,
         jenis_kelamin,
         no_hp,
-        alamat,
-        foto_profil
+        alamat
       })
       .eq('id_user', userId)
       .select()

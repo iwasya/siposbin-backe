@@ -55,25 +55,48 @@ exports.createJadwal = async (req, res) => {
   try {
     const { id_posbindu, tanggal, waktu, lokasi, keterangan } = req.body;
 
-    if (!id_posbindu || !tanggal) {
+    if (!tanggal || !id_posbindu) {
       return res.status(400).json({ message: "Data tidak lengkap" });
     }
 
-    const { data: jadwal, error: jadwalError } = await supabase
-      .from('jadwal_posbindu')
-      .insert([{
-        id_posbindu,
-        tanggal,
-        waktu,
-        lokasi,
-        keterangan,
-        dibuat_oleh: req.user.id
-      }])
-      .select()
-      .single();
+    let daftarPosbindu = [];
 
-    if (jadwalError) {
-      return res.status(400).json({ error: jadwalError.message });
+    // ===============================
+    // 🔥 MODE SEMUA POSBINDU
+    // ===============================
+    if (id_posbindu === "all") {
+
+      const { data, error } = await supabase
+        .from('posbindu')
+        .select('id_posbindu, nama_posbindu');
+
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      if (!data || data.length === 0) {
+        return res.status(400).json({ message: "Data posbindu tidak ditemukan" });
+      }
+
+      daftarPosbindu = data;
+    }
+
+    // ===============================
+    // 🔥 MODE SATU POSBINDU
+    // ===============================
+    else {
+
+      const { data, error } = await supabase
+        .from('posbindu')
+        .select('id_posbindu, nama_posbindu')
+        .eq('id_posbindu', id_posbindu)
+        .single();
+
+      if (error || !data) {
+        return res.status(400).json({ message: "Posbindu tidak ditemukan" });
+      }
+
+      daftarPosbindu = [data];
     }
 
     // Ambil role peserta
@@ -87,37 +110,66 @@ exports.createJadwal = async (req, res) => {
       return res.status(400).json({ message: "Role peserta tidak ditemukan" });
     }
 
-    // Ambil peserta
-    const { data: users } = await supabase
-      .from('users')
-      .select('id_user')
-      .eq('id_posbindu', id_posbindu)
-      .eq('id_role', rolePeserta.id_role);
+    let totalNotifikasi = 0;
+    let hasilJadwal = [];
 
-    if (users && users.length > 0) {
+    for (const pos of daftarPosbindu) {
 
-      const notifications = users.map(user => ({
-        id_user: user.id_user,
+      const { data: jadwal, error: jadwalError } = await supabase
+        .from('jadwal_posbindu')
+        .insert([{
+          id_posbindu: pos.id_posbindu,
+          tanggal,
+          waktu,
+          lokasi,
+          keterangan,
+          dibuat_oleh: req.user.id
+        }])
+        .select()
+        .single();
+
+      if (jadwalError) continue;
+
+      // Ambil peserta
+      const { data: users } = await supabase
+        .from('users')
+        .select('id_user')
+        .eq('id_posbindu', pos.id_posbindu)
+        .eq('id_role', rolePeserta.id_role);
+
+      if (users && users.length > 0) {
+        const notifications = users.map(user => ({
+          id_user: user.id_user,
+          id_jadwal: jadwal.id_jadwal,
+          judul: "Jadwal Posbindu Baru",
+          pesan: `Ada jadwal Posbindu di ${pos.nama_posbindu} pada ${tanggal} pukul ${waktu}`,
+          is_read: false
+        }));
+
+        await supabase.from('notifikasi').insert(notifications);
+
+        totalNotifikasi += users.length;
+      }
+
+      hasilJadwal.push({
         id_jadwal: jadwal.id_jadwal,
-        judul: "Jadwal Posbindu Baru",
-        pesan: `Ada jadwal Posbindu pada ${tanggal} pukul ${waktu}`,
-        is_read: false
-      }));
-
-      await supabase.from('notifikasi').insert(notifications);
+        nama_posbindu: pos.nama_posbindu,
+        tanggal: jadwal.tanggal,
+        waktu: jadwal.waktu
+      });
     }
 
     res.status(201).json({
       message: "Jadwal berhasil dibuat",
-      total_notifikasi: users?.length || 0,
-      jadwal
+      total_posbindu: daftarPosbindu.length,
+      total_notifikasi: totalNotifikasi,
+      jadwal: hasilJadwal
     });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 /* ================================
    UPDATE JADWAL
