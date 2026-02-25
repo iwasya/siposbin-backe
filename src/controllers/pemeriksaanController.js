@@ -185,7 +185,54 @@ exports.getPemeriksaan = async (req, res) => {
   }
 };
 
+/* =================================
+   GET DETAIL PEMERIKSAAN BY ID
+================================= */
+exports.getPemeriksaanById = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
 
+    // 1️⃣ Ambil pemeriksaan sesuai id DAN pastikan milik user
+    const { data: pemeriksaan, error } = await supabase
+      .from('pemeriksaan')
+      .select(`
+        *,
+        interpretasi (
+          status_kesehatan
+        )
+      `)
+      .eq('id_pemeriksaan', id)
+      .eq('id_user', userId) // 🔥 biar tidak bisa lihat punya orang lain
+      .single();
+
+    if (error || !pemeriksaan) {
+      return res.status(404).json({ message: "Data pemeriksaan tidak ditemukan" });
+    }
+
+    const status = pemeriksaan.interpretasi?.status_kesehatan;
+
+    // 2️⃣ Ambil edukasi sesuai status
+    let recommended = [];
+
+    if (status) {
+      const { data } = await supabase
+        .from('edukasi')
+        .select('*')
+        .ilike('target_status', status);
+
+      recommended = data || [];
+    }
+
+    res.json({
+      ...pemeriksaan,
+      recommended
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 /* =================================
    UPDATE PEMERIKSAAN
