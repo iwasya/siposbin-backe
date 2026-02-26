@@ -54,15 +54,18 @@ exports.updateProfile = async (req, res) => {
 
     const { nama, usia, jenis_kelamin, no_hp, alamat } = req.body;
 
+    // Buat object dinamis
+    let updateData = {};
+
+    if (nama !== undefined) updateData.nama = nama;
+    if (usia !== undefined) updateData.usia = usia;
+    if (jenis_kelamin !== undefined) updateData.jenis_kelamin = jenis_kelamin;
+    if (no_hp !== undefined) updateData.no_hp = no_hp;
+    if (alamat !== undefined) updateData.alamat = alamat;
+
     const { data, error } = await supabase
       .from('users')
-      .update({
-        nama,
-        usia,
-        jenis_kelamin,
-        no_hp,
-        alamat
-      })
+      .update(updateData)
       .eq('id_user', userId)
       .select()
       .single();
@@ -80,7 +83,6 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 exports.uploadProfilePhoto = async (req, res) => {
   try {
