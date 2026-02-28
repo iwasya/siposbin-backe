@@ -8,7 +8,8 @@ exports.register = async (req, res) => {
   try {
     const { nama, email, password, id_posbindu } = req.body;
 
-    if (!nama || !email || !password || !id_posbindu) {
+    // id_posbindu tidak wajib
+    if (!nama || !email || !password) {
       return res.status(400).json({ message: "Data tidak lengkap" });
     }
 
@@ -23,15 +24,21 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "Email sudah terdaftar" });
     }
 
-    // Cek apakah posbindu valid
-    const { data: posbindu, error: posbinduError } = await supabase
-      .from('posbindu')
-      .select('id_posbindu, nama_posbindu')
-      .eq('id_posbindu', id_posbindu)
-      .single();
+    let posbindu = null;
 
-    if (posbinduError || !posbindu) {
-      return res.status(400).json({ message: "Posbindu tidak ditemukan" });
+    // Cek posbindu hanya jika dikirim
+    if (id_posbindu) {
+      const { data, error } = await supabase
+        .from('posbindu')
+        .select('id_posbindu, nama_posbindu')
+        .eq('id_posbindu', id_posbindu)
+        .single();
+
+      if (error || !data) {
+        return res.status(400).json({ message: "Posbindu tidak ditemukan" });
+      }
+
+      posbindu = data;
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -42,8 +49,8 @@ exports.register = async (req, res) => {
         nama,
         email,
         password: hashedPassword,
-        id_role: 3, // otomatis peserta
-        id_posbindu
+        id_role: 3, // peserta
+        id_posbindu: id_posbindu || null
       }])
       .select()
       .single();
@@ -59,8 +66,8 @@ exports.register = async (req, res) => {
         nama: data.nama,
         email: data.email,
         id_role: data.id_role,
-        id_posbindu: posbindu.id_posbindu,
-        nama_posbindu: posbindu.nama_posbindu
+        id_posbindu: posbindu ? posbindu.id_posbindu : null,
+        nama_posbindu: posbindu ? posbindu.nama_posbindu : null
       }
     });
 
