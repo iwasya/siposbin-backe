@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-
+const compression = require("compression");
 const authRoutes = require('./routes/authRoutes');
 const posbinduRoutes = require('./routes/posbinduRoutes');
 const jadwalRoutes = require('./routes/jadwalRoutes');
@@ -32,7 +32,7 @@ app.use((req, res, next) => {
 
 app.use(cors());
 app.use(express.json());
-
+app.use(compression());
 app.use('/api/auth', authRoutes);
 app.use('/api/posbindu', posbinduRoutes);
 app.use('/api/jadwal', jadwalRoutes);
