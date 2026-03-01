@@ -25,8 +25,10 @@ const limiter = rateLimit({
   }
 });
 
-app.use(limiter);
-
+app.use((req, res, next) => {
+  if (req.path === "/health") return next();
+  limiter(req, res, next);
+});
 
 app.use(cors());
 app.use(express.json());
@@ -49,9 +51,6 @@ app.get('/', (req, res) => {
 app.get("/health", (req, res) => {
   res.status(200).send("OK");
 });
-app.use((req, res, next) => {
-  if (req.path === "/health") return next();
-  limiter(req, res, next);
-});
+
 
 module.exports = app;
