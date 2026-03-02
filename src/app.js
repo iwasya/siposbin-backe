@@ -18,10 +18,10 @@ const adminRoutes = require('./routes/adminRoutes');
 const app = express();
 app.use(helmet());
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 100, 
+  windowMs: 15 * 60 * 1000,
+  max: 500,
   message: {
-    message: "Terlalu banyak request, coba lagi nanti."
+    message: "Terlalu banyak request, coba lagi nanti, mohon tunggu 15 menit."
   }
 });
 
