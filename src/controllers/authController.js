@@ -165,7 +165,7 @@ exports.requestReset = async (req, res) => {
     const resend = getResend();
 
     await resend.emails.send({
-      from: 'SIPOSBIN <onboarding@resend.dev>',
+      from: 'SIPOSBIN <noreply@siposbin.my.id>',
       to: email,
       subject: 'Reset Password SIPOSBIN',
       html: `
