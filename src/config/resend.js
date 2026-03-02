@@ -1,5 +1,17 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendInstance = null;
 
-module.exports = resend;
+const getResend = () => {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY belum diset di .env");
+  }
+
+  if (!resendInstance) {
+    resendInstance = new Resend(process.env.RESEND_API_KEY);
+  }
+
+  return resendInstance;
+};
+
+module.exports = getResend;

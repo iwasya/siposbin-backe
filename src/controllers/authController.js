@@ -2,8 +2,8 @@ const supabase = require('../config/supabase');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const transporter = require('../config/mailer');
-const resend = require('../config/resend');
+const getResend = require('../config/resend');
+
 exports.register = async (req, res) => {
   try {
     const { nama, email, password, id_posbindu } = req.body;
@@ -161,16 +161,16 @@ exports.requestReset = async (req, res) => {
       req.socket.remoteAddress ||
       "Unknown";
 
+    // 🔥 INIT RESEND
+    const resend = getResend();
+
     await resend.emails.send({
-      from: `"SIPOSBIN" <${process.env.EMAIL_USER}>`,
+      from: 'SIPOSBIN <onboarding@resend.dev>',
       to: email,
-      subject: "Reset Password SIPOSBIN",
+      subject: 'Reset Password SIPOSBIN',
       html: `
       <div style="font-family: Arial; background:#f4f6f8; padding:30px;">
         <div style="max-width:500px;margin:auto;background:#fff;padding:30px;border-radius:10px;">
-          <div style="text-align:center;">
-            <img src="https://via.placeholder.com/120x50?text=SIPOSBIN" />
-          </div>
           <h2 style="text-align:center;">Reset Password</h2>
           <p>Halo <strong>${user.nama}</strong>,</p>
           <p>Permintaan reset dari IP:</p>
@@ -186,7 +186,6 @@ exports.requestReset = async (req, res) => {
       `
     });
 
-    // 🔐 AUDIT LOG
     await supabase.from('password_reset_logs').insert([{
       user_id: user.id_user,
       email: email,
