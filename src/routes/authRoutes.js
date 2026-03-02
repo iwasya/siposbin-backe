@@ -5,17 +5,17 @@ const rateLimit = require('express-rate-limit');
 
 // 🔐 Login limiter
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
+  windowMs: 5 * 60 * 1000,
+  max: 100,
   message: {
-    message: "Terlalu banyak percobaan login, coba lagi nanti."
+    message: "Terlalu banyak percobaan login, coba lagi nanti. Mohon tunggu 5 menit."
   }
 });
 const resetLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
+  windowMs: 10 * 60 * 1000, 
   max: 5, 
   message: {
-    message: "Terlalu banyak permintaan reset password. Coba lagi nanti."
+    message: "Terlalu banyak permintaan reset password. Coba lagi 10 menit lagi."
   }
 });
 
