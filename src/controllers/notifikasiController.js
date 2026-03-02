@@ -16,6 +16,8 @@ exports.getMyNotifications = async (req, res) => {
         jadwal_posbindu (
           tanggal,
           waktu,
+          lokasi,
+          keterangan,
           posbindu (
             nama_posbindu
           )
