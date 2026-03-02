@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const transporter = require('../config/mailer');
-
+const resend = require('../config/resend');
 exports.register = async (req, res) => {
   try {
     const { nama, email, password, id_posbindu } = req.body;
@@ -161,7 +161,7 @@ exports.requestReset = async (req, res) => {
       req.socket.remoteAddress ||
       "Unknown";
 
-    await transporter.sendMail({
+    await resend.emails.send({
       from: `"SIPOSBIN" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Reset Password SIPOSBIN",
