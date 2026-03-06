@@ -1,10 +1,12 @@
 const supabase = require('../config/supabase');
 const admin = require('../config/firebase');
 
+
 /* ================================
    GET SEMUA JADWAL
 ================================ */
 exports.getJadwal = async (req, res) => {
+
   try {
 
     const { data, error } = await supabase
@@ -19,16 +21,22 @@ exports.getJadwal = async (req, res) => {
     res.json(data);
 
   } catch (err) {
+
     res.status(500).json({ error: err.message });
+
   }
+
 };
+
 
 
 /* ================================
    GET JADWAL BY ID
 ================================ */
 exports.getJadwalById = async (req, res) => {
+
   try {
+
     const { id } = req.params;
 
     const { data, error } = await supabase
@@ -44,16 +52,22 @@ exports.getJadwalById = async (req, res) => {
     res.json(data);
 
   } catch (err) {
+
     res.status(500).json({ error: err.message });
+
   }
+
 };
 
 
+
 /* ================================
-   CREATE JADWAL
+   CREATE JADWAL + NOTIFIKASI + PUSH
 ================================ */
 exports.createJadwal = async (req, res) => {
+
   try {
+
     const { id_posbindu, tanggal, waktu, lokasi, keterangan } = req.body;
 
     if (!tanggal || !id_posbindu) {
@@ -62,9 +76,10 @@ exports.createJadwal = async (req, res) => {
 
     let daftarPosbindu = [];
 
-    /* ===============================
+
+    /* ================================
        MODE SEMUA POSBINDU
-    =============================== */
+    ================================= */
     if (id_posbindu === "all") {
 
       const { data, error } = await supabase
@@ -80,11 +95,13 @@ exports.createJadwal = async (req, res) => {
       }
 
       daftarPosbindu = data;
+
     }
 
-    /* ===============================
+
+    /* ================================
        MODE SATU POSBINDU
-    =============================== */
+    ================================= */
     else {
 
       const { data, error } = await supabase
@@ -98,9 +115,13 @@ exports.createJadwal = async (req, res) => {
       }
 
       daftarPosbindu = [data];
+
     }
 
-    // Ambil role peserta
+
+    /* ================================
+       AMBIL ROLE PESERTA
+    ================================= */
     const { data: rolePeserta } = await supabase
       .from('roles')
       .select('id_role')
@@ -111,14 +132,20 @@ exports.createJadwal = async (req, res) => {
       return res.status(400).json({ message: "Role peserta tidak ditemukan" });
     }
 
+
     let totalNotifikasi = 0;
     let hasilJadwal = [];
 
+
+    /* ================================
+       LOOP POSBINDU
+    ================================= */
     for (const pos of daftarPosbindu) {
 
-      /* ===============================
-         SIMPAN JADWAL
-      =============================== */
+
+      /* ================================
+         INSERT JADWAL
+      ================================= */
       const { data: jadwal, error: jadwalError } = await supabase
         .from('jadwal_posbindu')
         .insert([{
@@ -132,22 +159,28 @@ exports.createJadwal = async (req, res) => {
         .select()
         .single();
 
-      if (jadwalError) continue;
+      if (jadwalError) {
+        console.log("ERROR INSERT JADWAL:", jadwalError.message);
+        continue;
+      }
 
-      /* ===============================
-         AMBIL PESERTA + FCM TOKEN
-      =============================== */
+
+      /* ================================
+         AMBIL USER PESERTA
+      ================================= */
       const { data: users } = await supabase
         .from('users')
         .select('id_user, fcm_token')
         .eq('id_posbindu', pos.id_posbindu)
         .eq('id_role', rolePeserta.id_role);
 
+
       if (users && users.length > 0) {
 
-        /* ===============================
-           SIMPAN NOTIFIKASI DATABASE
-        =============================== */
+
+        /* ================================
+           INSERT NOTIFIKASI DATABASE
+        ================================= */
         const notifications = users.map(user => ({
           id_user: user.id_user,
           id_jadwal: jadwal.id_jadwal,
@@ -160,26 +193,46 @@ exports.createJadwal = async (req, res) => {
 
         totalNotifikasi += users.length;
 
-        /* ===============================
-           PUSH NOTIFICATION FCM
-        =============================== */
+
+        /* ================================
+           PUSH NOTIFICATION
+        ================================= */
         const tokens = users
           .map(user => user.fcm_token)
-          .filter(token => token);
+          .filter(token => token && token !== null && token !== "");
 
         if (tokens.length > 0) {
 
-          await admin.messaging().sendEachForMulticast({
-            notification: {
-              title: "Jadwal Posbindu Baru",
-              body: `Ada jadwal Posbindu di ${pos.nama_posbindu} pada ${tanggal} pukul ${waktu}`
-            },
-            tokens: tokens
-          });
+          try {
+
+            const response = await admin.messaging().sendEachForMulticast({
+
+              tokens: tokens,
+
+              notification: {
+                title: "Jadwal Posbindu Baru",
+                body: `Ada jadwal Posbindu di ${pos.nama_posbindu} pada ${tanggal} pukul ${waktu}`
+              },
+
+              android: {
+                priority: "high"
+              }
+
+            });
+
+            console.log("Push success:", response.successCount);
+            console.log("Push failed:", response.failureCount);
+
+          } catch (err) {
+
+            console.log("ERROR PUSH FCM:", err.message);
+
+          }
 
         }
 
       }
+
 
       hasilJadwal.push({
         id_jadwal: jadwal.id_jadwal,
@@ -187,26 +240,41 @@ exports.createJadwal = async (req, res) => {
         tanggal: jadwal.tanggal,
         waktu: jadwal.waktu
       });
+
     }
 
+
     res.status(201).json({
+
       message: "Jadwal berhasil dibuat",
+
       total_posbindu: daftarPosbindu.length,
+
       total_notifikasi: totalNotifikasi,
+
       jadwal: hasilJadwal
+
     });
 
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
+
+  catch (err) {
+
+    res.status(500).json({ error: err.message });
+
+  }
+
 };
+
 
 
 /* ================================
    UPDATE JADWAL
 ================================ */
 exports.updateJadwal = async (req, res) => {
+
   try {
+
     const { id } = req.params;
     const { tanggal, waktu, lokasi, keterangan } = req.body;
 
@@ -232,16 +300,22 @@ exports.updateJadwal = async (req, res) => {
     });
 
   } catch (err) {
+
     res.status(500).json({ error: err.message });
+
   }
+
 };
+
 
 
 /* ================================
    DELETE JADWAL
 ================================ */
 exports.deleteJadwal = async (req, res) => {
+
   try {
+
     const { id } = req.params;
 
     const { error } = await supabase
@@ -255,7 +329,12 @@ exports.deleteJadwal = async (req, res) => {
 
     res.json({ message: "Jadwal berhasil dihapus" });
 
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
+
+  catch (err) {
+
+    res.status(500).json({ error: err.message });
+
+  }
+
 };
