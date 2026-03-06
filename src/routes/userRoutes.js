@@ -27,6 +27,6 @@ router.put('/:id/reset-password',
   roleMiddleware([1]),
   userController.resetUserPassword
 );
-
-
+router.post("/save-fcm-token", authMiddleware, userController.saveFcmToken);
+router.post("/test-notif", userController.testNotif);
 module.exports = router;

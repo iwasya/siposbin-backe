@@ -1,5 +1,7 @@
 const bcrypt = require('bcrypt');
 const supabase = require('../config/supabase');
+const admin = require('../config/firebase');
+
 
 exports.createKader = async (req, res) => {
   try {
@@ -113,4 +115,61 @@ exports.resetUserPassword = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+exports.saveFcmToken = async (req, res) => {
+  try {
+
+    const userId = req.user.id;
+    const { fcm_token } = req.body;
+
+    if (!fcm_token) {
+      return res.status(400).json({
+        message: "FCM token tidak boleh kosong"
+      });
+    }
+
+    const { error } = await supabase
+      .from("users")
+      .update({ fcm_token })
+      .eq("id_user", userId);
+
+    if (error) throw error;
+
+    res.json({
+      message: "FCM token berhasil disimpan"
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message
+    });
+  }
+};
+
+exports.testNotif = async (req, res) => {
+
+  try {
+
+    const token = req.body.token;
+
+    await admin.messaging().send({
+      token: token,
+      notification: {
+        title: "Test Notifikasi",
+        body: "Firebase berhasil"
+      }
+    });
+
+    res.json({
+      message: "Notifikasi berhasil dikirim"
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+
 };

@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const admin = require('../config/firebase');
 
 /* ================================
    GET SEMUA JADWAL
@@ -61,9 +62,9 @@ exports.createJadwal = async (req, res) => {
 
     let daftarPosbindu = [];
 
-    // ===============================
-    // 🔥 MODE SEMUA POSBINDU
-    // ===============================
+    /* ===============================
+       MODE SEMUA POSBINDU
+    =============================== */
     if (id_posbindu === "all") {
 
       const { data, error } = await supabase
@@ -81,9 +82,9 @@ exports.createJadwal = async (req, res) => {
       daftarPosbindu = data;
     }
 
-    // ===============================
-    // 🔥 MODE SATU POSBINDU
-    // ===============================
+    /* ===============================
+       MODE SATU POSBINDU
+    =============================== */
     else {
 
       const { data, error } = await supabase
@@ -115,6 +116,9 @@ exports.createJadwal = async (req, res) => {
 
     for (const pos of daftarPosbindu) {
 
+      /* ===============================
+         SIMPAN JADWAL
+      =============================== */
       const { data: jadwal, error: jadwalError } = await supabase
         .from('jadwal_posbindu')
         .insert([{
@@ -130,14 +134,20 @@ exports.createJadwal = async (req, res) => {
 
       if (jadwalError) continue;
 
-      // Ambil peserta
+      /* ===============================
+         AMBIL PESERTA + FCM TOKEN
+      =============================== */
       const { data: users } = await supabase
         .from('users')
-        .select('id_user')
+        .select('id_user, fcm_token')
         .eq('id_posbindu', pos.id_posbindu)
         .eq('id_role', rolePeserta.id_role);
 
       if (users && users.length > 0) {
+
+        /* ===============================
+           SIMPAN NOTIFIKASI DATABASE
+        =============================== */
         const notifications = users.map(user => ({
           id_user: user.id_user,
           id_jadwal: jadwal.id_jadwal,
@@ -149,6 +159,26 @@ exports.createJadwal = async (req, res) => {
         await supabase.from('notifikasi').insert(notifications);
 
         totalNotifikasi += users.length;
+
+        /* ===============================
+           PUSH NOTIFICATION FCM
+        =============================== */
+        const tokens = users
+          .map(user => user.fcm_token)
+          .filter(token => token);
+
+        if (tokens.length > 0) {
+
+          await admin.messaging().sendEachForMulticast({
+            notification: {
+              title: "Jadwal Posbindu Baru",
+              body: `Ada jadwal Posbindu di ${pos.nama_posbindu} pada ${tanggal} pukul ${waktu}`
+            },
+            tokens: tokens
+          });
+
+        }
+
       }
 
       hasilJadwal.push({
@@ -170,6 +200,7 @@ exports.createJadwal = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 /* ================================
    UPDATE JADWAL
