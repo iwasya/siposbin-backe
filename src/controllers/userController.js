@@ -116,16 +116,42 @@ exports.resetUserPassword = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
 exports.saveFcmToken = async (req, res) => {
   try {
 
     const userId = req.user.id;
     const { fcm_token } = req.body;
 
-    if (!fcm_token) {
+    if (!fcm_token || typeof fcm_token !== "string") {
       return res.status(400).json({
-        message: "FCM token tidak boleh kosong"
+        message: "FCM token tidak valid"
       });
+    }
+
+    // cek token lama
+    const { data: user, error: fetchError } = await supabase
+      .from("users")
+      .select("fcm_token")
+      .eq("id_user", userId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User tidak ditemukan"
+      });
+    }
+
+    // jika token sama tidak perlu update
+    if (user.fcm_token === fcm_token) {
+
+      return res.json({
+        message: "Token tidak berubah"
+      });
+
     }
 
     const { error } = await supabase
@@ -136,13 +162,17 @@ exports.saveFcmToken = async (req, res) => {
     if (error) throw error;
 
     res.json({
-      message: "FCM token berhasil disimpan"
+      message: "FCM token berhasil diperbarui"
     });
 
   } catch (error) {
+
+    console.error("Save FCM Token Error:", error);
+
     res.status(500).json({
       message: error.message
     });
+
   }
 };
 
