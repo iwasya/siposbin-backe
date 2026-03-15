@@ -4,7 +4,7 @@ const userController = require('../controllers/userController');
 const authMiddleware = require('../middleware/authMiddleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
 
-router.post('/create-kader',
+router.post('/',
   authMiddleware,
   roleMiddleware([1]),
   userController.createKader
