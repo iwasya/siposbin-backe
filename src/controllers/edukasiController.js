@@ -86,13 +86,13 @@ exports.getEdukasi = async (req, res) => {
   }
 };
 
-
 exports.createEdukasi = async (req, res) => {
   try {
+
     const {
+      kategori,
       judul,
       deskripsi,
-      konten,
       target_status
     } = req.body;
 
@@ -100,9 +100,9 @@ exports.createEdukasi = async (req, res) => {
       .from('edukasi')
       .insert([
         {
+          kategori: kategori,
           judul: judul,
           deskripsi: deskripsi,
-          konten: konten,
           target_status: target_status
         }
       ])
