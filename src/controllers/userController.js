@@ -2,15 +2,32 @@ const bcrypt = require('bcrypt');
 const supabase = require('../config/supabase');
 const admin = require('../config/firebase');
 
-
 exports.createKader = async (req, res) => {
   try {
+
     const { nama, email, password, id_posbindu } = req.body;
 
+    // validasi input
     if (!nama || !email || !password) {
-      return res.status(400).json({ message: "Data tidak lengkap" });
+      return res.status(400).json({
+        message: "Nama, email, dan password wajib diisi"
+      });
     }
 
+    // cek email sudah digunakan atau belum
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id_user')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existingUser) {
+      return res.status(400).json({
+        message: "Email sudah digunakan"
+      });
+    }
+
+    // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const { data, error } = await supabase
@@ -26,7 +43,11 @@ exports.createKader = async (req, res) => {
       ])
       .select();
 
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      return res.status(400).json({
+        error: error.message
+      });
+    }
 
     res.status(201).json({
       message: "Kader berhasil dibuat",
@@ -34,9 +55,14 @@ exports.createKader = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({
+      error: err.message
+    });
+
   }
 };
+
 exports.getAllUsers = async (req, res) => {
   try {
 
@@ -219,3 +245,74 @@ exports.testNotif = async (req, res) => {
 
 };
 
+// ===============================
+// UPDATE USER
+// ===============================
+exports.updateUser = async (req, res) => {
+  try {
+
+    const { id } = req.params;
+    const { nama, email, password, id_posbindu, id_role } = req.body;
+
+    if (!nama || !email) {
+      return res.status(400).json({
+        message: "Nama dan email wajib diisi"
+      });
+    }
+
+    // cek user ada atau tidak
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select('id_user')
+      .eq('id_user', id)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+
+    if (!existingUser) {
+      return res.status(404).json({
+        message: "User tidak ditemukan"
+      });
+    }
+
+    let updateData = {
+      nama,
+      email,
+      id_posbindu,
+      id_role
+    };
+
+    // jika password dikirim maka hash password
+    if (password) {
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      updateData.password = hashedPassword;
+
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id_user', id)
+      .select();
+
+    if (error) {
+      return res.status(400).json({
+        error: error.message
+      });
+    }
+
+    res.json({
+      message: "User berhasil diperbarui",
+      data
+    });
+
+  } catch (err) {
+
+    res.status(500).json({
+      error: err.message
+    });
+
+  }
+};
