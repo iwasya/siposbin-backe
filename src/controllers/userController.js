@@ -37,19 +37,29 @@ exports.createKader = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 exports.getAllUsers = async (req, res) => {
   try {
+
     let { page = 1, limit = 10, search = "" } = req.query;
 
     page = parseInt(page);
     limit = parseInt(limit);
+
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
     let query = supabase
       .from('users')
-      .select('id_user, nama, email, id_role, id_posbindu', { count: 'exact' })
+      .select(`
+        id_user,
+        nama,
+        email,
+        id_role,
+        id_posbindu,
+        posbindu (
+          nama_posbindu
+        )
+      `, { count: 'exact' })
       .range(from, to);
 
     if (search) {
@@ -58,7 +68,9 @@ exports.getAllUsers = async (req, res) => {
 
     const { data, error, count } = await query;
 
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
 
     res.json({
       page,
@@ -69,10 +81,13 @@ exports.getAllUsers = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({
+      error: err.message
+    });
+
   }
 };
-
 
 exports.deleteUser = async (req, res) => {
   try {
