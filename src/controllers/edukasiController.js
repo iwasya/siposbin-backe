@@ -121,3 +121,72 @@ exports.createEdukasi = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+// ===============================
+// UPDATE EDUKASI
+// ===============================
+exports.updateEdukasi = async (req, res) => {
+  try {
+
+    const id = req.params.id;
+
+    const {
+      kategori,
+      judul,
+      deskripsi,
+      target_status
+    } = req.body;
+
+    const { data, error } = await supabase
+      .from('edukasi')
+      .update({
+        kategori,
+        judul,
+        deskripsi,
+        target_status
+      })
+      .eq('id_edukasi', id)
+      .select();
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      message: "Edukasi berhasil diperbarui",
+      data
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// ===============================
+// DELETE EDUKASI
+// ===============================
+exports.deleteEdukasi = async (req, res) => {
+  try {
+
+    const id = req.params.id;
+
+    const { error } = await supabase
+      .from('edukasi')
+      .delete()
+      .eq('id_edukasi', id);
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      message: "Edukasi berhasil dihapus"
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
