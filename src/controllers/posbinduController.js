@@ -4,11 +4,20 @@ const supabase = require('../config/supabase');
 // CREATE POSBINDU
 // ===============================
 exports.createPosbindu = async (req, res) => {
-  const { nama_posbindu, desa, kecamatan, kabupaten } = req.body;
+
+  const { nama_posbindu, alamat, desa, kecamatan, kabupaten } = req.body;
 
   const { data, error } = await supabase
     .from('posbindu')
-    .insert([{ nama_posbindu, desa, kecamatan, kabupaten }])
+    .insert([
+      {
+        nama_posbindu,
+        alamat,
+        desa,
+        kecamatan,
+        kabupaten
+      }
+    ])
     .select();
 
   if (error) return res.status(400).json({ error: error.message });
@@ -58,12 +67,14 @@ exports.getPosbinduById = async (req, res) => {
 exports.updatePosbindu = async (req, res) => {
 
   const id = req.params.id;
-  const { nama_posbindu, desa, kecamatan, kabupaten } = req.body;
+
+  const { nama_posbindu, alamat, desa, kecamatan, kabupaten } = req.body;
 
   const { data, error } = await supabase
     .from('posbindu')
     .update({
       nama_posbindu,
+      alamat,
       desa,
       kecamatan,
       kabupaten
