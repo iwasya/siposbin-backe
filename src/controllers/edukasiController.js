@@ -93,7 +93,6 @@ exports.createEdukasi = async (req, res) => {
       judul,
       deskripsi,
       konten,
-      gambar,
       target_status
     } = req.body;
 
@@ -104,7 +103,6 @@ exports.createEdukasi = async (req, res) => {
           judul: judul,
           deskripsi: deskripsi,
           konten: konten,
-          gambar: gambar,
           target_status: target_status
         }
       ])
