@@ -33,12 +33,41 @@ exports.getAllPosbindu = async (req, res) => {
 
   const { data, error } = await supabase
     .from('posbindu')
-    .select('*')
+    .select(`
+      id_posbindu,
+      nama_posbindu,
+      alamat,
+      desa,
+      kecamatan,
+      kabupaten,
+      users (
+        id_user,
+        id_role
+      )
+    `)
     .order('id_posbindu', { ascending: false });
 
   if (error) return res.status(400).json({ error: error.message });
 
-  res.json(data);
+  const result = data.map(posbindu => {
+
+    const jumlah_pengguna = posbindu.users
+      ? posbindu.users.filter(user => user.id_role === 2 || user.id_role === 3).length
+      : 0;
+
+    return {
+      id_posbindu: posbindu.id_posbindu,
+      nama_posbindu: posbindu.nama_posbindu,
+      alamat: posbindu.alamat,
+      desa: posbindu.desa,
+      kecamatan: posbindu.kecamatan,
+      kabupaten: posbindu.kabupaten,
+      jumlah_pengguna
+    };
+
+  });
+
+  res.json(result);
 };
 
 

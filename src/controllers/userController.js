@@ -20,7 +20,7 @@ exports.createKader = async (req, res) => {
           nama,
           email,
           password: hashedPassword,
-          id_role: 2, // 🔥 KADER
+          id_role, // 🔥 KADER
           id_posbindu
         }
       ])
@@ -203,3 +203,4 @@ exports.testNotif = async (req, res) => {
   }
 
 };
+
