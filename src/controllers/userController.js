@@ -1,16 +1,15 @@
 const bcrypt = require('bcrypt');
 const supabase = require('../config/supabase');
 const admin = require('../config/firebase');
-
 exports.createKader = async (req, res) => {
   try {
 
-    const { nama, email, password, id_posbindu } = req.body;
+    const { nama, email, password, id_role, id_posbindu } = req.body;
 
     // validasi input
-    if (!nama || !email || !password) {
+    if (!nama || !email || !password || !id_role) {
       return res.status(400).json({
-        message: "Nama, email, dan password wajib diisi"
+        message: "Nama, email, password, dan role wajib diisi"
       });
     }
 
@@ -37,7 +36,7 @@ exports.createKader = async (req, res) => {
           nama,
           email,
           password: hashedPassword,
-          id_role, // 🔥 KADER
+          id_role,
           id_posbindu
         }
       ])
@@ -50,7 +49,7 @@ exports.createKader = async (req, res) => {
     }
 
     res.status(201).json({
-      message: "Kader berhasil dibuat",
+      message: "User berhasil dibuat",
       data
     });
 
