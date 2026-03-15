@@ -85,3 +85,41 @@ exports.getEdukasi = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+exports.createEdukasi = async (req, res) => {
+  try {
+    const {
+      judul,
+      deskripsi,
+      konten,
+      gambar,
+      target_status
+    } = req.body;
+
+    const { data, error } = await supabase
+      .from('edukasi')
+      .insert([
+        {
+          judul: judul,
+          deskripsi: deskripsi,
+          konten: konten,
+          gambar: gambar,
+          target_status: target_status
+        }
+      ])
+      .select();
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      message: "Edukasi berhasil ditambahkan",
+      data: data
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
