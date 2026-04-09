@@ -17,6 +17,6 @@ router.post('/', authMiddleware, roleMiddleware([1,2]), jadwalController.createJ
 router.put('/:id', authMiddleware, roleMiddleware([1,2]), jadwalController.updateJadwal);
 
 // DELETE (admin only)
-router.delete('/:id', authMiddleware, roleMiddleware([1,2]), jadwalController.deleteJadwal);
+router.delete('/:id', authMiddleware, roleMiddleware([1]), jadwalController.deleteJadwal);
 
 module.exports = router;

@@ -2,6 +2,20 @@ const supabase = require('../config/supabase');
 const sharp = require('sharp');
 const bcrypt = require('bcrypt');
 
+const buildProfileResponse = (data) => ({
+  id_user: data.id_user,
+  nama: data.nama,
+  email: data.email,
+  usia: data.usia,
+  jenis_kelamin: data.jenis_kelamin,
+  no_hp: data.no_hp,
+  alamat: data.alamat,
+  foto_profil: data.foto_profil,
+  id_role: data.id_role,
+  id_posbindu: data.id_posbindu,
+  nama_posbindu: data.posbindu?.nama_posbindu || null
+});
+
 
 // ======================
 // GET PROFILE
@@ -34,19 +48,7 @@ exports.getProfile = async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    res.json({
-      id_user: data.id_user,
-      nama: data.nama,
-      email: data.email,
-      usia: data.usia,
-      jenis_kelamin: data.jenis_kelamin,
-      no_hp: data.no_hp,
-      alamat: data.alamat,
-      foto_profil: data.foto_profil,
-      id_role: data.id_role,
-      id_posbindu: data.id_posbindu,
-      nama_posbindu: data.posbindu?.nama_posbindu || null
-    });
+    res.json(buildProfileResponse(data));
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -67,7 +69,8 @@ exports.updateProfile = async (req, res) => {
       jenis_kelamin,
       no_hp,
       alamat,
-      id_posbindu   // 🔥 TAMBAHAN INI
+      id_posbindu,
+      foto_profil
     } = req.body;
 
     let updateData = {};
@@ -78,6 +81,7 @@ exports.updateProfile = async (req, res) => {
     if (no_hp !== undefined) updateData.no_hp = no_hp;
     if (alamat !== undefined) updateData.alamat = alamat;
     if (id_posbindu !== undefined) updateData.id_posbindu = id_posbindu;
+    if (foto_profil !== undefined) updateData.foto_profil = foto_profil;
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: "Tidak ada data yang diupdate" });
@@ -96,7 +100,7 @@ exports.updateProfile = async (req, res) => {
 
     res.json({
       message: "Profile berhasil diperbarui",
-      data
+      data: buildProfileResponse(data)
     });
 
   } catch (err) {
@@ -140,10 +144,14 @@ exports.uploadProfilePhoto = async (req, res) => {
 
     const publicUrl = publicUrlData.publicUrl;
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('users')
       .update({ foto_profil: publicUrl })
       .eq('id_user', userId);
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message });
+    }
 
     res.json({
       message: "Foto berhasil diupload & dikompres",
@@ -186,10 +194,14 @@ exports.changePassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(new_password, 10);
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('users')
       .update({ password: hashedPassword })
       .eq('id_user', userId);
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message });
+    }
 
     res.json({ message: "Password berhasil diubah" });
 

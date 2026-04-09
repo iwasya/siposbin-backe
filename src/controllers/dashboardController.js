@@ -14,7 +14,7 @@ exports.getDashboardSummary = async (req, res) => {
         )
       `)
       .eq('id_user', userId)
-      .order('created_at', { ascending: false })
+      .order('tanggal_pemeriksaan', { ascending: false })
       .limit(1)
       .single();
 

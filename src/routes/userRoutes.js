@@ -35,5 +35,10 @@ router.put('/:id',
 );
 
 router.post("/save-fcm-token", authMiddleware, userController.saveFcmToken);
-router.post("/test-notif", userController.testNotif);
+router.post(
+  "/test-notif",
+  authMiddleware,
+  roleMiddleware([1]),
+  userController.testNotif
+);
 module.exports = router;

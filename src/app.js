@@ -11,23 +11,16 @@ const edukasiRoutes = require('./routes/edukasiRoutes');
 const statistikRoutes = require('./routes/statistikRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const { globalLimiter } = require('./middleware/rateLimiters');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 app.use(helmet());
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  message: {
-    message: "Terlalu banyak request, coba lagi nanti, mohon tunggu 15 menit."
-  }
-});
 
 app.use((req, res, next) => {
   if (req.path === "/health") return next();
-  limiter(req, res, next);
+  globalLimiter(req, res, next);
 });
 
 app.use(cors());

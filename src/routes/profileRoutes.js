@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const profileController = require('../controllers/profileController');
 const authMiddleware = require('../middleware/authMiddleware');
+const { changePasswordLimiter } = require('../middleware/rateLimiters');
 const upload = require('../middleware/uploadMiddleware');
 const sharp = require('sharp');
 
@@ -11,6 +12,7 @@ router.put('/', authMiddleware, profileController.updateProfile);
 router.post('/upload-photo', authMiddleware, upload.single('foto'), profileController.uploadProfilePhoto);
 router.put('/change-password',
   authMiddleware,
+  changePasswordLimiter,
   profileController.changePassword
 );
 

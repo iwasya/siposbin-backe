@@ -1,5 +1,61 @@
 const supabase = require('../config/supabase');
 
+const toPositiveNumber = (value) => {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const toMetricNumber = (value, defaultValue = 0) => {
+  if (value === undefined || value === null || value === '') {
+    return defaultValue;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const calculateStatus = ({
+  sistolik,
+  diastolik,
+  gula_darah,
+  kolesterol
+}) => {
+  if (
+    sistolik >= 140 ||
+    diastolik >= 90 ||
+    gula_darah >= 200 ||
+    kolesterol >= 240
+  ) {
+    return "Risiko";
+  }
+
+  if (
+    sistolik >= 120 ||
+    diastolik >= 80 ||
+    gula_darah >= 140 ||
+    kolesterol >= 200
+  ) {
+    return "Waspada";
+  }
+
+  return "Normal";
+};
+
+const calculateBmi = (beratBadan, tinggiBadan) => {
+  const tinggiMeter = tinggiBadan / 100;
+  return beratBadan / (tinggiMeter * tinggiMeter);
+};
+
 /* =================================
    CREATE PEMERIKSAAN
 ================================= */
@@ -17,38 +73,46 @@ exports.createPemeriksaan = async (req, res) => {
 
     const id_user = req.user.id;
 
-    if (!berat_badan || !tinggi_badan) {
+    const parsedBeratBadan = toPositiveNumber(berat_badan);
+    const parsedTinggiBadan = toPositiveNumber(tinggi_badan);
+    const parsedSistolik = toMetricNumber(sistolik);
+    const parsedDiastolik = toMetricNumber(diastolik);
+    const parsedGulaDarah = toMetricNumber(gula_darah);
+    const parsedKolesterol = toMetricNumber(kolesterol);
+    const parsedAsamUrat = toMetricNumber(asam_urat);
+
+    if (!parsedBeratBadan || !parsedTinggiBadan) {
       return res.status(400).json({
-        message: "Berat & tinggi badan wajib diisi"
+        message: "Berat & tinggi badan wajib diisi dengan angka lebih dari 0"
+      });
+    }
+
+    if (
+      parsedSistolik === null ||
+      parsedDiastolik === null ||
+      parsedGulaDarah === null ||
+      parsedKolesterol === null ||
+      parsedAsamUrat === null
+    ) {
+      return res.status(400).json({
+        message: "Data pemeriksaan harus berupa angka yang valid"
       });
     }
 
     // ==============================
     // Hitung BMI
     // ==============================
-    const tinggiMeter = tinggi_badan / 100;
-    const bmi = berat_badan / (tinggiMeter * tinggiMeter);
+    const bmi = calculateBmi(parsedBeratBadan, parsedTinggiBadan);
 
     // ==============================
     // Tentukan Status
     // ==============================
-    let status = "Normal";
-
-    if (
-      sistolik >= 140 ||
-      diastolik >= 90 ||
-      gula_darah >= 200 ||
-      kolesterol >= 240
-    ) {
-      status = "Risiko";
-    } else if (
-      sistolik >= 120 ||
-      diastolik >= 80 ||
-      gula_darah >= 140 ||
-      kolesterol >= 200
-    ) {
-      status = "Waspada";
-    }
+    const status = calculateStatus({
+      sistolik: parsedSistolik,
+      diastolik: parsedDiastolik,
+      gula_darah: parsedGulaDarah,
+      kolesterol: parsedKolesterol
+    });
 
     const cleanStatus = status.trim();
 
@@ -60,13 +124,13 @@ exports.createPemeriksaan = async (req, res) => {
       .insert([{
         id_user,
         tanggal_pemeriksaan: new Date(),
-        sistolik,
-        diastolik,
-        gula_darah,
-        kolesterol,
-        asam_urat,
-        berat_badan,
-        tinggi_badan,
+        sistolik: parsedSistolik,
+        diastolik: parsedDiastolik,
+        gula_darah: parsedGulaDarah,
+        kolesterol: parsedKolesterol,
+        asam_urat: parsedAsamUrat,
+        berat_badan: parsedBeratBadan,
+        tinggi_badan: parsedTinggiBadan,
         bmi,
         created_by: id_user
       }])
@@ -82,12 +146,18 @@ exports.createPemeriksaan = async (req, res) => {
     // ==============================
     // Simpan Interpretasi
     // ==============================
-    await supabase
+    const { error: interpretasiError } = await supabase
       .from('interpretasi')
       .insert([{
         id_pemeriksaan: pemeriksaan.id_pemeriksaan,
         status_kesehatan: cleanStatus
       }]);
+
+    if (interpretasiError) {
+      return res.status(400).json({
+        error: interpretasiError.message
+      });
+    }
 
     // ==============================
     // Ambil Edukasi Recommended
@@ -250,16 +320,77 @@ exports.updatePemeriksaan = async (req, res) => {
       tinggi_badan
     } = req.body;
 
-    const { data, error } = await supabase
+    const { data: existingPemeriksaan, error: fetchError } = await supabase
       .from('pemeriksaan')
-      .update({
+      .select(`
+        id_pemeriksaan,
+        id_user,
         sistolik,
         diastolik,
         gula_darah,
         kolesterol,
         asam_urat,
         berat_badan,
-        tinggi_badan
+        tinggi_badan,
+        interpretasi (
+          status_kesehatan
+        )
+      `)
+      .eq('id_pemeriksaan', id)
+      .eq('id_user', req.user.id)
+      .single();
+
+    if (fetchError || !existingPemeriksaan) {
+      return res.status(404).json({
+        message: "Pemeriksaan tidak ditemukan"
+      });
+    }
+
+    const parsedSistolik = toMetricNumber(sistolik, existingPemeriksaan.sistolik ?? 0);
+    const parsedDiastolik = toMetricNumber(diastolik, existingPemeriksaan.diastolik ?? 0);
+    const parsedGulaDarah = toMetricNumber(gula_darah, existingPemeriksaan.gula_darah ?? 0);
+    const parsedKolesterol = toMetricNumber(kolesterol, existingPemeriksaan.kolesterol ?? 0);
+    const parsedAsamUrat = toMetricNumber(asam_urat, existingPemeriksaan.asam_urat ?? 0);
+    const parsedBeratBadan = berat_badan === undefined
+      ? toPositiveNumber(existingPemeriksaan.berat_badan)
+      : toPositiveNumber(berat_badan);
+    const parsedTinggiBadan = tinggi_badan === undefined
+      ? toPositiveNumber(existingPemeriksaan.tinggi_badan)
+      : toPositiveNumber(tinggi_badan);
+
+    if (
+      parsedSistolik === null ||
+      parsedDiastolik === null ||
+      parsedGulaDarah === null ||
+      parsedKolesterol === null ||
+      parsedAsamUrat === null ||
+      !parsedBeratBadan ||
+      !parsedTinggiBadan
+    ) {
+      return res.status(400).json({
+        message: "Data pemeriksaan harus berupa angka valid, dan berat/tinggi badan harus lebih dari 0"
+      });
+    }
+
+    const bmi = calculateBmi(parsedBeratBadan, parsedTinggiBadan);
+    const cleanStatus = calculateStatus({
+      sistolik: parsedSistolik,
+      diastolik: parsedDiastolik,
+      gula_darah: parsedGulaDarah,
+      kolesterol: parsedKolesterol
+    }).trim();
+
+    const { data, error } = await supabase
+      .from('pemeriksaan')
+      .update({
+        sistolik: parsedSistolik,
+        diastolik: parsedDiastolik,
+        gula_darah: parsedGulaDarah,
+        kolesterol: parsedKolesterol,
+        asam_urat: parsedAsamUrat,
+        berat_badan: parsedBeratBadan,
+        tinggi_badan: parsedTinggiBadan,
+        bmi
       })
       .eq('id_pemeriksaan', id)
       .eq('id_user', req.user.id)
@@ -272,9 +403,27 @@ exports.updatePemeriksaan = async (req, res) => {
       });
     }
 
+    const { error: interpretasiError } = await supabase
+      .from('interpretasi')
+      .update({
+        status_kesehatan: cleanStatus
+      })
+      .eq('id_pemeriksaan', id);
+
+    if (interpretasiError) {
+      return res.status(400).json({
+        error: interpretasiError.message
+      });
+    }
+
     res.json({
       message: "Pemeriksaan berhasil diupdate",
-      data
+      data: {
+        ...data,
+        interpretasi: {
+          status_kesehatan: cleanStatus
+        }
+      }
     });
 
   } catch (err) {
