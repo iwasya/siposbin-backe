@@ -28,7 +28,7 @@ API utama berjalan dari [server.js](/d:/kerjaan/siposbin-backend/server.js) dan 
 - Penyimpanan log reset password untuk admin
 - CRUD pemeriksaan kesehatan
 - Perhitungan BMI otomatis
-- Penentuan status kesehatan: `Normal`, `Waspada`, `Risiko`
+- Penentuan status kesehatan: `Normal`, `Waspada`, `Risiko`, `Risiko Tinggi`
 - Rekomendasi edukasi berdasarkan status kesehatan
 - Riwayat dan detail pemeriksaan user
 - Dashboard ringkasan user
@@ -272,25 +272,57 @@ Catatan:
 Pada modul pemeriksaan:
 
 - berat dan tinggi badan divalidasi agar lebih dari `0`
-- BMI dihitung otomatis
-- status kesehatan dihitung berdasarkan tekanan darah, gula darah, dan kolesterol
-- update pemeriksaan juga menghitung ulang `BMI`
-- update pemeriksaan juga memperbarui `interpretasi`
+- metrik pemeriksaan numerik divalidasi agar tidak bernilai negatif
+- BMI dihitung otomatis dari `berat_badan / (tinggi_badan_meter^2)`
+- interpretasi detail dihitung untuk tekanan darah, gula darah, kolesterol, asam urat, dan BMI
+- status kesehatan akhir dihitung dari hasil interpretasi detail
+- `create` dan `update` pemeriksaan sama-sama menghitung ulang `BMI` dan memperbarui `interpretasi`
 
-Kategori status:
+Kategori interpretasi:
 
+- Tekanan darah:
+  - `Optimal`: sistolik `< 120` dan diastolik `< 80`
+  - `Normal`: sistolik `<= 129` dan diastolik `<= 84`
+  - `Normal Tinggi`: sistolik `<= 139` dan diastolik `<= 89`
+  - `Hipertensi 1`: sistolik `<= 159` dan diastolik `<= 99`
+  - `Hipertensi 2`: sistolik `<= 179` dan diastolik `<= 109`
+  - `Hipertensi 3`: di atas kategori sebelumnya
+- Gula darah sewaktu:
+  - `Normal`: `< 140`
+  - `Prediabetes`: `>= 140` dan `< 200`
+  - `Diabetes`: `>= 200`
+- Kolesterol total:
+  - `Normal`: `< 200`
+  - `Waspada`: `>= 200` dan `< 240`
+  - `Tinggi`: `>= 240`
+- Asam urat:
+  - Pria:
+    - `Normal`: `< 7`
+    - `Waspada`: `>= 7` dan `<= 8`
+    - `Tinggi`: `> 8` dan `< 9`
+    - `Bahaya`: `>= 9`
+  - Wanita:
+    - `Normal`: `< 6`
+    - `Waspada`: `>= 6` dan `<= 7`
+    - `Tinggi`: `> 7` dan `< 8`
+    - `Bahaya`: `>= 8`
+- BMI:
+  - `Kurus`: `< 18.5`
+  - `Normal`: `18.5 - 22.9`
+  - `Overweight`: `23 - 24.9`
+  - `Obesitas 1`: `25 - 29.9`
+  - `Obesitas 2`: `>= 30`
+
+Kategori status akhir:
+
+- `Risiko Tinggi`
+  - jika ada hasil `Hipertensi 3`, `Bahaya`, atau `Diabetes`
 - `Risiko`
-  - sistolik `>= 140`
-  - diastolik `>= 90`
-  - gula darah `>= 200`
-  - kolesterol `>= 240`
+  - jika ada hasil `Hipertensi 2`, `Tinggi`, `Prediabetes`, `Obesitas 1`, atau `Obesitas 2`
 - `Waspada`
-  - sistolik `>= 120`
-  - diastolik `>= 80`
-  - gula darah `>= 140`
-  - kolesterol `>= 200`
+  - jika ada hasil `Normal Tinggi`, `Hipertensi 1`, `Waspada`, atau `Overweight`
 - `Normal`
-  - jika tidak masuk dua kategori di atas
+  - jika semua hasil detail masih normal
 
 ## Catatan Implementasi
 
