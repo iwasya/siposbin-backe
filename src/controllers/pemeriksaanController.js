@@ -135,6 +135,186 @@ const getPenjelasan = (status) => {
   }
 };
 
+const normalizeStatusLabel = (value) => {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace("resiko", "risiko");
+};
+
+const normalizeText = (value) => {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const getStatusCandidates = (status) => {
+  const normalized = normalizeStatusLabel(status);
+
+  if (normalized === "risiko tinggi") {
+    return ["risiko tinggi", "risiko", "waspada", "normal"];
+  }
+  if (normalized === "risiko") {
+    return ["risiko", "waspada", "normal"];
+  }
+  if (normalized === "waspada") {
+    return ["waspada", "normal"];
+  }
+  if (normalized === "normal") {
+    return ["normal"];
+  }
+
+  return [normalized];
+};
+
+const buildRecommendationSignals = (status, interpretasi = null) => {
+  const tekananDarah = normalizeStatusLabel(
+    interpretasi?.tekanan_darah ?? interpretasi?.tekananDarah
+  );
+  const gula = normalizeStatusLabel(
+    interpretasi?.gula_darah ?? interpretasi?.gula
+  );
+  const kolesterol = normalizeStatusLabel(
+    interpretasi?.kolesterol ?? interpretasi?.kol
+  );
+  const asamUrat = normalizeStatusLabel(
+    interpretasi?.asam_urat ?? interpretasi?.asam
+  );
+  const bmiStatus = normalizeStatusLabel(
+    interpretasi?.bmi_status ?? interpretasi?.bmiStatus
+  );
+
+  const signals = [];
+
+  if (tekananDarah && !["optimal", "normal"].includes(tekananDarah)) {
+    signals.push({
+      weight: 40,
+      keywords: ["hipertensi", "tekanan darah", "darah tinggi", "sistolik", "diastolik"]
+    });
+  }
+
+  if (gula && gula !== "normal") {
+    signals.push({
+      weight: 35,
+      keywords: ["gula darah", "diabetes", "prediabetes", "glukosa"]
+    });
+  }
+
+  if (kolesterol && kolesterol !== "normal") {
+    signals.push({
+      weight: 30,
+      keywords: ["kolesterol", "lemak darah", "ldl", "hdl", "trigliserida"]
+    });
+  }
+
+  if (asamUrat && asamUrat !== "normal") {
+    signals.push({
+      weight: 30,
+      keywords: ["asam urat", "purin", "sendi"]
+    });
+  }
+
+  if (bmiStatus && bmiStatus !== "normal") {
+    signals.push({
+      weight: 25,
+      keywords: ["bmi", "berat badan", "obesitas", "overweight", "aktivitas fisik"]
+    });
+  }
+
+  if (signals.length === 0) {
+    signals.push({
+      weight: 20,
+      keywords: ["pola hidup sehat", "pencegahan", "olahraga", "nutrisi", "gaya hidup"]
+    });
+  }
+
+  const normalizedStatus = normalizeStatusLabel(status);
+  if (normalizedStatus === "risiko tinggi") {
+    signals.push({
+      weight: 35,
+      keywords: ["segera", "lanjutan", "tenaga medis", "dokter", "rujukan"]
+    });
+  } else if (normalizedStatus === "risiko") {
+    signals.push({
+      weight: 20,
+      keywords: ["konsultasi", "perbaikan", "kendalikan", "monitoring"]
+    });
+  } else if (normalizedStatus === "waspada") {
+    signals.push({
+      weight: 15,
+      keywords: ["waspada", "pantau", "jaga", "kontrol rutin"]
+    });
+  }
+
+  return signals;
+};
+
+const getRecommendedEdukasi = async (status, interpretasi = null, edukasiList = null) => {
+  const candidates = getStatusCandidates(status);
+  if (!candidates[0]) return [];
+
+  let data = edukasiList;
+  if (!data) {
+    const { data: fetchedData, error } = await supabase
+      .from('edukasi')
+      .select('*');
+
+    if (error || !fetchedData) return [];
+    data = fetchedData;
+  }
+
+  const byStatus = new Map();
+  data.forEach((item) => {
+    const key = normalizeStatusLabel(item.target_status);
+    if (!byStatus.has(key)) byStatus.set(key, []);
+    byStatus.get(key).push(item);
+  });
+
+  const signals = buildRecommendationSignals(status, interpretasi);
+  const ranked = data
+    .map((item) => {
+      const targetStatus = normalizeStatusLabel(item.target_status);
+      const rankIndex = candidates.indexOf(targetStatus);
+      let score = rankIndex >= 0 ? 120 - (rankIndex * 15) : 0;
+
+      const searchable = normalizeText(
+        `${item.kategori || ""} ${item.judul || ""} ${item.deskripsi || ""}`
+      );
+
+      signals.forEach((signal) => {
+        let hit = 0;
+        signal.keywords.forEach((keyword) => {
+          if (searchable.includes(normalizeText(keyword))) hit += 1;
+        });
+
+        if (hit > 0) {
+          score += signal.weight + (hit * 4);
+        }
+      });
+
+      return { item, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return new Date(b.item.created_at || 0) - new Date(a.item.created_at || 0);
+    })
+    .map((entry) => entry.item);
+
+  if (ranked.length > 0) {
+    return ranked.slice(0, 5);
+  }
+
+  for (const candidate of candidates) {
+    const matched = byStatus.get(candidate) || [];
+    if (matched.length > 0) return matched;
+  }
+
+  return [];
+};
+
 /* =========================
    BUILD INTERPRETASI
 ========================= */
@@ -227,6 +407,7 @@ exports.createPemeriksaan = async (req, res) => {
       bmi,
       jenisKelamin: jenis_kelamin
     });
+    const penjelasan = getPenjelasan(status);
 
     // ======================
     // SIMPAN PEMERIKSAAN
@@ -244,6 +425,7 @@ exports.createPemeriksaan = async (req, res) => {
         berat_badan: bb,
         tinggi_badan: tb,
         bmi,
+        penjelasan,
         created_by: id_user
       }])
       .select()
@@ -267,10 +449,13 @@ exports.createPemeriksaan = async (req, res) => {
     // ======================
     // AMBIL EDUKASI
     // ======================
-    const { data: recommended } = await supabase
-      .from('edukasi')
-      .select('*')
-      .ilike('target_status', status);
+    const recommended = await getRecommendedEdukasi(status, {
+      tekanan_darah: tekananDarah,
+      gula_darah: gula,
+      kolesterol: kol,
+      asam_urat: asam,
+      bmi_status: bmiStatus
+    });
 
     // ======================
     // RESPONSE FINAL
@@ -278,7 +463,7 @@ exports.createPemeriksaan = async (req, res) => {
     res.status(201).json({
       message: "Berhasil",
       status,
-      penjelasan: getPenjelasan(status),
+      penjelasan,
       detail: {
         tekananDarah,
         gula,
@@ -325,16 +510,25 @@ exports.getPemeriksaan = async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
+    const { data: edukasiList, error: edukasiError } = await supabase
+      .from('edukasi')
+      .select('*');
+
+    if (edukasiError) {
+      return res.status(400).json({ error: edukasiError.message });
+    }
+
     // 2️⃣ Loop setiap pemeriksaan dan tambahkan edukasi
     const result = await Promise.all(
       pemeriksaan.map(async (item) => {
         const status = item.interpretasi?.status_kesehatan;
 
         // Ambil recommended
-        const { data: recommended } = await supabase
-          .from('edukasi')
-          .select('*')
-          .ilike('target_status', status);
+        const recommended = await getRecommendedEdukasi(
+          status,
+          item.interpretasi,
+          edukasiList || []
+        );
 
         return {
           ...item,
@@ -372,7 +566,12 @@ exports.getPemeriksaanById = async (req, res) => {
       .select(`
         *,
         interpretasi (
-          status_kesehatan
+          status_kesehatan,
+          tekanan_darah,
+          gula_darah,
+          kolesterol,
+          asam_urat,
+          bmi_status
         )
       `)
       .eq('id_pemeriksaan', id)
@@ -389,12 +588,7 @@ exports.getPemeriksaanById = async (req, res) => {
     let recommended = [];
 
     if (status) {
-      const { data } = await supabase
-        .from('edukasi')
-        .select('*')
-        .ilike('target_status', status);
-
-      recommended = data || [];
+      recommended = await getRecommendedEdukasi(status, pemeriksaan.interpretasi);
     }
 
     res.json({
