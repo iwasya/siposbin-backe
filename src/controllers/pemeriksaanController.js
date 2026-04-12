@@ -310,7 +310,12 @@ exports.getPemeriksaan = async (req, res) => {
       .select(`
         *,
         interpretasi (
-          status_kesehatan
+          status_kesehatan,
+          tekanan_darah,
+          gula_darah,
+          kolesterol,
+          asam_urat,
+          bmi_status
         )
       `)
       .eq('id_user', userId)
@@ -333,6 +338,14 @@ exports.getPemeriksaan = async (req, res) => {
 
         return {
           ...item,
+          penjelasan: getPenjelasan(status),
+          detail: {
+            tekananDarah: item.interpretasi?.tekanan_darah || "Tidak diketahui",
+            gula: item.interpretasi?.gula_darah || "Tidak diketahui",
+            kol: item.interpretasi?.kolesterol || "Tidak diketahui",
+            asam: item.interpretasi?.asam_urat || "Tidak diketahui",
+            bmiStatus: item.interpretasi?.bmi_status || "Tidak diketahui"
+          },
           recommended: recommended || []
         };
       })
