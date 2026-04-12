@@ -329,7 +329,6 @@ exports.getPemeriksaan = async (req, res) => {
     const result = await Promise.all(
       pemeriksaan.map(async (item) => {
         const status = item.interpretasi?.status_kesehatan;
-        const { interpretasi, ...pemeriksaanTanpaInterpretasi } = item;
 
         // Ambil recommended
         const { data: recommended } = await supabase
@@ -338,14 +337,14 @@ exports.getPemeriksaan = async (req, res) => {
           .ilike('target_status', status);
 
         return {
-          ...pemeriksaanTanpaInterpretasi,
+          ...item,
           penjelasan: getPenjelasan(status),
           detail: {
-            tekananDarah: interpretasi?.tekanan_darah || "Tidak diketahui",
-            gula: interpretasi?.gula_darah || "Tidak diketahui",
-            kol: interpretasi?.kolesterol || "Tidak diketahui",
-            asam: interpretasi?.asam_urat || "Tidak diketahui",
-            bmiStatus: interpretasi?.bmi_status || "Tidak diketahui"
+            tekananDarah: item.interpretasi?.tekanan_darah || "Tidak diketahui",
+            gula: item.interpretasi?.gula_darah || "Tidak diketahui",
+            kol: item.interpretasi?.kolesterol || "Tidak diketahui",
+            asam: item.interpretasi?.asam_urat || "Tidak diketahui",
+            bmiStatus: item.interpretasi?.bmi_status || "Tidak diketahui"
           },
           recommended: recommended || []
         };
