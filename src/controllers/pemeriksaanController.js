@@ -151,6 +151,140 @@ const normalizeText = (value) => {
     .trim();
 };
 
+const PEMANTAUAN_MESSAGE = "Lakukan pemeriksaan secara berkala untuk pemantauan kondisi kesehatan.";
+
+const buildTekananDarahDetail = (status, sistolik, diastolik) => {
+  const normalized = normalizeStatusLabel(status);
+  let keterangan = "Tekanan darah Anda berada di atas batas normal dan berisiko menyebabkan penyakit jantung atau stroke. Segera lakukan perubahan gaya hidup sehat dan konsultasikan ke tenaga kesehatan.";
+
+  if (normalized === "rendah") {
+    keterangan = "Tekanan darah Anda berada di bawah batas normal (kurang dari 90/60 mmHg). Kondisi ini dapat menyebabkan pusing, lemas, atau pingsan. Disarankan untuk mencukupi cairan, makan teratur, dan bangun perlahan dari posisi duduk atau berbaring.";
+  } else if (["optimal", "normal"].includes(normalized)) {
+    keterangan = "Tekanan darah Anda berada dalam rentang normal, yang menunjukkan kondisi jantung dan pembuluh darah yang baik. Pertahankan pola hidup sehat seperti konsumsi makanan rendah garam, rutin berolahraga, serta mengelola stres dengan baik.";
+  } else if (normalized === "normal tinggi") {
+    keterangan = "Tekanan darah Anda sedikit di atas normal dan berisiko berkembang menjadi hipertensi jika tidak dikontrol. Disarankan untuk mulai mengurangi konsumsi garam, menjaga berat badan, serta meningkatkan aktivitas fisik.";
+  }
+
+  return {
+    kategori: "Tekanan Darah",
+    nilai: `${sistolik ?? 0}/${diastolik ?? 0}`,
+    satuan: "mmHg",
+    status: status || null,
+    keterangan,
+    anjuran: PEMANTAUAN_MESSAGE
+  };
+};
+
+const buildKolesterolDetail = (status, nilai) => {
+  const normalized = normalizeStatusLabel(status);
+  let keterangan = "Kadar kolesterol yang tinggi dapat meningkatkan risiko penyakit jantung. Segera lakukan perubahan pola makan dan konsultasi dengan tenaga kesehatan.";
+
+  if (normalized === "rendah") {
+    keterangan = "Kadar kolesterol terlalu rendah dapat memengaruhi fungsi tubuh. Disarankan tetap konsumsi lemak sehat seperti ikan dan kacang-kacangan serta pola makan seimbang.";
+  } else if (normalized === "normal") {
+    keterangan = "Kadar kolesterol Anda masih dalam batas aman. Tetap jaga pola makan sehat dengan mengurangi lemak jenuh dan rutin berolahraga.";
+  } else if (normalized === "waspada") {
+    keterangan = "Kadar kolesterol Anda mendekati batas tinggi. Disarankan untuk mengurangi makanan berlemak, gorengan, serta meningkatkan aktivitas fisik.";
+  }
+
+  return {
+    kategori: "Kolesterol",
+    nilai,
+    satuan: "mg/dL",
+    status: status || null,
+    keterangan,
+    anjuran: PEMANTAUAN_MESSAGE
+  };
+};
+
+const buildAsamUratDetail = (status, nilai) => {
+  const normalized = normalizeStatusLabel(status);
+  const keterangan = normalized === "rendah"
+    ? "Kadar asam urat rendah (<2 mg/dL) jarang terjadi namun perlu diperhatikan. Pastikan asupan nutrisi cukup dan lakukan pemeriksaan lanjutan bila perlu."
+    : normalized === "normal"
+      ? "Kadar asam urat Anda dalam batas normal. Pertahankan pola makan sehat dan cukup minum air putih."
+      : "Kadar asam urat yang tinggi dapat menyebabkan nyeri sendi. Hindari makanan tinggi purin seperti jeroan dan seafood, serta perbanyak konsumsi air putih.";
+
+  return {
+    kategori: "Asam Urat",
+    nilai,
+    satuan: "mg/dL",
+    status: status || null,
+    keterangan,
+    anjuran: PEMANTAUAN_MESSAGE
+  };
+};
+
+const buildGulaDarahDetail = (status, nilai) => {
+  const normalized = normalizeStatusLabel(status);
+  let keterangan = "Kadar gula darah Anda tinggi dan menunjukkan risiko diabetes. Segera konsultasikan dengan tenaga kesehatan untuk penanganan lebih lanjut.";
+
+  if (normalized === "rendah") {
+    keterangan = "Kadar gula darah Anda berada di bawah normal (kurang dari 70 mg/dL). Dapat menyebabkan gemetar, lemas, dan pusing. Segera konsumsi makanan atau minuman manis dan jaga pola makan teratur.";
+  } else if (normalized === "normal") {
+    keterangan = "Kadar gula darah Anda berada dalam batas normal. Pertahankan pola makan seimbang dan aktivitas fisik secara rutin.";
+  } else if (normalized === "prediabetes" || normalized === "pra-diabetes") {
+    keterangan = "Kadar gula darah Anda sedikit di atas normal dan berisiko berkembang menjadi diabetes. Disarankan untuk mengurangi konsumsi gula dan menjaga berat badan.";
+  }
+
+  return {
+    kategori: "Gula Darah",
+    nilai,
+    satuan: "mg/dL",
+    status: status || null,
+    keterangan,
+    anjuran: PEMANTAUAN_MESSAGE
+  };
+};
+
+const buildBmiDetail = (status, nilai) => {
+  const normalized = normalizeStatusLabel(status);
+  let keterangan = "Berat badan Anda berada pada kategori obesitas yang berisiko terhadap berbagai penyakit. Disarankan untuk melakukan perubahan gaya hidup dan konsultasi dengan tenaga kesehatan.";
+
+  if (normalized === "kurus") {
+    keterangan = "IMT di bawah 18,5 menunjukkan berat badan kurang. Disarankan meningkatkan asupan kalori dan nutrisi serta menjaga pola makan teratur.";
+  } else if (normalized === "normal") {
+    keterangan = "Indeks massa tubuh Anda berada dalam kategori ideal. Pertahankan pola makan sehat dan aktivitas fisik yang cukup.";
+  } else if (normalized === "overweight") {
+    keterangan = "Berat badan Anda melebihi batas normal. Disarankan untuk mulai mengatur pola makan dan meningkatkan aktivitas fisik.";
+  }
+
+  return {
+    kategori: "Indeks Massa Tubuh (IMT)",
+    nilai: typeof nilai === "number" ? Number(nilai.toFixed(1)) : nilai,
+    satuan: "kg/m2",
+    status: status || null,
+    keterangan,
+    anjuran: PEMANTAUAN_MESSAGE
+  };
+};
+
+const buildPengecekan = (item) => {
+  const interpretasi = item?.interpretasi || {};
+
+  return {
+    tanggal_pemeriksaan: formatToJakartaDateTime(item?.tanggal_pemeriksaan),
+    status: {
+      tekanan_darah: interpretasi.tekanan_darah || null,
+      kolesterol: interpretasi.kolesterol || null,
+      asam_urat: interpretasi.asam_urat || null,
+      gula_darah: interpretasi.gula_darah || null,
+      bmi_status: interpretasi.bmi_status || null
+    },
+    detail: {
+      tekanan_darah: buildTekananDarahDetail(
+        interpretasi.tekanan_darah,
+        item?.sistolik,
+        item?.diastolik
+      ),
+      kolesterol: buildKolesterolDetail(interpretasi.kolesterol, item?.kolesterol),
+      asam_urat: buildAsamUratDetail(interpretasi.asam_urat, item?.asam_urat),
+      gula_darah: buildGulaDarahDetail(interpretasi.gula_darah, item?.gula_darah),
+      bmi_status: buildBmiDetail(interpretasi.bmi_status, item?.bmi)
+    }
+  };
+};
+
 const getStatusCandidates = (status) => {
   const normalized = normalizeStatusLabel(status);
 
@@ -533,6 +667,7 @@ exports.getPemeriksaan = async (req, res) => {
         return {
           ...item,
           created_at: formatToJakartaDateTime(item.created_at),
+          pengecekan: buildPengecekan(item),
           penjelasan: getPenjelasan(status),
           detail: {
             tekananDarah: item.interpretasi?.tekanan_darah || "Tidak diketahui",
@@ -594,6 +729,8 @@ exports.getPemeriksaanById = async (req, res) => {
 
     res.json({
       ...pemeriksaan,
+      created_at: formatToJakartaDateTime(pemeriksaan.created_at),
+      pengecekan: buildPengecekan(pemeriksaan),
       recommended
     });
 
