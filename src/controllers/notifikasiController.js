@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { formatToJakartaDateTime } = require('../utils/dateTime');
 
 /*
 ========================================
@@ -46,7 +47,12 @@ exports.getMyNotifications = async (req, res) => {
       });
     }
 
-    res.json(data);
+    const result = (data || []).map((item) => ({
+      ...item,
+      created_at: formatToJakartaDateTime(item.created_at)
+    }));
+
+    res.json(result);
 
   } catch (err) {
 
@@ -96,9 +102,14 @@ exports.markAsRead = async (req, res) => {
 
     }
 
+    const result = (data || []).map((item) => ({
+      ...item,
+      created_at: formatToJakartaDateTime(item.created_at)
+    }));
+
     res.json({
       message: "Notifikasi berhasil ditandai sudah dibaca",
-      data
+      data: result
     });
 
   } catch (err) {

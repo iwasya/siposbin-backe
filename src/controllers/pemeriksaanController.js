@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { formatToJakartaDateTime } = require('../utils/dateTime');
 
 /* =========================
    VALIDATION
@@ -148,23 +149,6 @@ const normalizeText = (value) => {
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();
-};
-
-const formatToWibDateTime = (value) => {
-  if (!value) return value;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Asia/Jakarta",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
-  }).format(date);
 };
 
 const getStatusCandidates = (status) => {
@@ -548,7 +532,7 @@ exports.getPemeriksaan = async (req, res) => {
 
         return {
           ...item,
-          created_at: formatToWibDateTime(item.created_at),
+          created_at: formatToJakartaDateTime(item.created_at),
           penjelasan: getPenjelasan(status),
           detail: {
             tekananDarah: item.interpretasi?.tekanan_darah || "Tidak diketahui",

@@ -1,23 +1,7 @@
 const supabase = require('../config/supabase');
+const { formatToJakartaDateTime } = require('../utils/dateTime');
 
 const PEMANTAUAN_MESSAGE = "Lakukan pemeriksaan secara berkala untuk pemantauan kondisi kesehatan.";
-
-const formatToWibDateTime = (value) => {
-  if (!value) return value;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Asia/Jakarta",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
-  }).format(date);
-};
 
 const toMetricNumber = (value) => {
   const parsed = Number(value);
@@ -203,7 +187,7 @@ const buildPengecekanByStatus = (latestRow, jenisKelamin) => {
   const bmiStatus = getImtStatusDanPesan(latestRow.bmi);
 
   return {
-    tanggal_pemeriksaan: formatToWibDateTime(latestRow.tanggal_pemeriksaan),
+    tanggal_pemeriksaan: formatToJakartaDateTime(latestRow.tanggal_pemeriksaan),
     status: {
       tekanan_darah: tekananDarah?.status || null,
       kolesterol: kolesterol?.status || null,
@@ -251,7 +235,7 @@ exports.getStatistik = async (req, res) => {
     const jenisKelamin = userData?.jenis_kelamin || "pria";
 
     // Format untuk grafik
-    const labels = rows.map(item => formatToWibDateTime(item.tanggal_pemeriksaan));
+    const labels = rows.map(item => formatToJakartaDateTime(item.tanggal_pemeriksaan));
     const sistolik = rows.map(item => item.sistolik);
     const diastolik = rows.map(item => item.diastolik);
     const gula_darah = rows.map(item => item.gula_darah);

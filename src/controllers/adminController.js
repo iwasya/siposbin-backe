@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { formatToJakartaDateTime } = require('../utils/dateTime');
 
 
 // ==============================
@@ -35,12 +36,17 @@ exports.getResetLogs = async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
+    const result = (data || []).map((item) => ({
+      ...item,
+      created_at: formatToJakartaDateTime(item.created_at)
+    }));
+
     res.json({
       page,
       limit,
       total: count,
       total_pages: Math.ceil(count / limit),
-      data
+      data: result
     });
 
   } catch (err) {

@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { formatToJakartaDateTime } = require('../utils/dateTime');
 
 exports.getDashboardSummary = async (req, res) => {
   try {
@@ -36,8 +37,16 @@ exports.getDashboardSummary = async (req, res) => {
       .eq('id_user', userId)
       .eq('is_read', false);
 
+    const formattedLastCheck = lastCheck
+      ? {
+          ...lastCheck,
+          created_at: formatToJakartaDateTime(lastCheck.created_at),
+          tanggal_pemeriksaan: formatToJakartaDateTime(lastCheck.tanggal_pemeriksaan)
+        }
+      : null;
+
     res.json({
-      last_check: lastCheck || null,
+      last_check: formattedLastCheck,
       total_pemeriksaan: totalPemeriksaan || 0,
       unread_notifikasi: unreadNotif || 0
     });

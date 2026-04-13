@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const { formatToJakartaDateTime } = require('../utils/dateTime');
 
 exports.getEdukasi = async (req, res) => {
   try {
@@ -38,7 +39,10 @@ exports.getEdukasi = async (req, res) => {
       return res.json({
         status_user: null,
         recommended: [],
-        all_edukasi: allEdukasi || []
+        all_edukasi: (allEdukasi || []).map((item) => ({
+          ...item,
+          created_at: formatToJakartaDateTime(item.created_at)
+        }))
       });
     }
 
@@ -77,8 +81,14 @@ exports.getEdukasi = async (req, res) => {
 
     res.json({
       status_user: status,
-      recommended: recommended || [],
-      all_edukasi: allEdukasi || []
+      recommended: (recommended || []).map((item) => ({
+        ...item,
+        created_at: formatToJakartaDateTime(item.created_at)
+      })),
+      all_edukasi: (allEdukasi || []).map((item) => ({
+        ...item,
+        created_at: formatToJakartaDateTime(item.created_at)
+      }))
     });
 
   } catch (err) {
