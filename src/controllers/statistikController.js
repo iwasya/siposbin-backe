@@ -187,7 +187,9 @@ const buildPengecekanByStatus = (latestRow, jenisKelamin) => {
   const bmiStatus = getImtStatusDanPesan(latestRow.bmi);
 
   return {
-    tanggal_pemeriksaan: formatToJakartaDateTime(latestRow.tanggal_pemeriksaan),
+    tanggal_pemeriksaan: formatToJakartaDateTime(
+      latestRow.created_at || latestRow.tanggal_pemeriksaan
+    ),
     status: {
       tekanan_darah: tekananDarah?.status || null,
       kolesterol: kolesterol?.status || null,
@@ -212,9 +214,10 @@ exports.getStatistik = async (req, res) => {
     const [{ data, error }, { data: userData, error: userError }] = await Promise.all([
       supabase
       .from('pemeriksaan')
-      .select('tanggal_pemeriksaan, sistolik, diastolik, gula_darah, kolesterol, asam_urat, bmi')
+      .select('tanggal_pemeriksaan, created_at, sistolik, diastolik, gula_darah, kolesterol, asam_urat, bmi')
       .eq('id_user', userId)
-      .order('tanggal_pemeriksaan', { ascending: true }),
+      .order('tanggal_pemeriksaan', { ascending: true })
+      .order('created_at', { ascending: true }),
       supabase
         .from('users')
         .select('jenis_kelamin')
@@ -235,7 +238,9 @@ exports.getStatistik = async (req, res) => {
     const jenisKelamin = userData?.jenis_kelamin || "pria";
 
     // Format untuk grafik
-    const labels = rows.map(item => formatToJakartaDateTime(item.tanggal_pemeriksaan));
+    const labels = rows.map(item =>
+      formatToJakartaDateTime(item.created_at || item.tanggal_pemeriksaan)
+    );
     const sistolik = rows.map(item => item.sistolik);
     const diastolik = rows.map(item => item.diastolik);
     const gula_darah = rows.map(item => item.gula_darah);
