@@ -181,6 +181,34 @@ const getImtStatusDanPesan = (bmi) => {
   };
 };
 
+const buildPengecekanByStatus = (latestRow, jenisKelamin) => {
+  if (!latestRow) return null;
+
+  const tekananDarah = getTekananDarahStatusDanPesan(latestRow.sistolik, latestRow.diastolik);
+  const kolesterol = getKolesterolStatusDanPesan(latestRow.kolesterol);
+  const asamUrat = getAsamUratStatusDanPesan(latestRow.asam_urat, jenisKelamin);
+  const gulaDarah = getGulaDarahStatusDanPesan(latestRow.gula_darah);
+  const bmiStatus = getImtStatusDanPesan(latestRow.bmi);
+
+  return {
+    tanggal_pemeriksaan: formatToWibDateTime(latestRow.tanggal_pemeriksaan),
+    status: {
+      tekanan_darah: tekananDarah?.status || null,
+      kolesterol: kolesterol?.status || null,
+      asam_urat: asamUrat?.status || null,
+      gula_darah: gulaDarah?.status || null,
+      bmi_status: bmiStatus?.status || null
+    },
+    detail: {
+      tekanan_darah: tekananDarah,
+      kolesterol,
+      asam_urat: asamUrat,
+      gula_darah: gulaDarah,
+      bmi_status: bmiStatus
+    }
+  };
+};
+
 exports.getStatistik = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -219,14 +247,7 @@ exports.getStatistik = async (req, res) => {
     const asam_urat = rows.map(item => item.asam_urat);
     const bmi = rows.map(item => item.bmi);
 
-    const pengecekan = latestRow ? {
-      tanggal_pemeriksaan: formatToWibDateTime(latestRow.tanggal_pemeriksaan),
-      tekanan_darah: getTekananDarahStatusDanPesan(latestRow.sistolik, latestRow.diastolik),
-      kolesterol: getKolesterolStatusDanPesan(latestRow.kolesterol),
-      asam_urat: getAsamUratStatusDanPesan(latestRow.asam_urat, jenisKelamin),
-      gula_darah: getGulaDarahStatusDanPesan(latestRow.gula_darah),
-      imt: getImtStatusDanPesan(latestRow.bmi)
-    } : null;
+    const pengecekan = buildPengecekanByStatus(latestRow, jenisKelamin);
 
     res.json({
       labels,
