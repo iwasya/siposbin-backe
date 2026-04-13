@@ -31,15 +31,22 @@ const getTekananDarahStatusDanPesan = (sistolik, diastolik) => {
 
   if (s === null || d === null) return null;
 
-  let status = "Hipertensi";
+  let status = "Hipertensi 3";
   let keterangan = "Tekanan darah Anda berada di atas batas normal dan berisiko menyebabkan penyakit jantung atau stroke. Segera lakukan perubahan gaya hidup sehat dan konsultasikan ke tenaga kesehatan.";
 
   if (s < 120 && d < 80) {
+    status = "Optimal";
+    keterangan = "Tekanan darah Anda berada dalam rentang normal, yang menunjukkan kondisi jantung dan pembuluh darah yang baik. Pertahankan pola hidup sehat seperti konsumsi makanan rendah garam, rutin berolahraga, serta mengelola stres dengan baik.";
+  } else if (s <= 129 && d <= 84) {
     status = "Normal";
     keterangan = "Tekanan darah Anda berada dalam rentang normal, yang menunjukkan kondisi jantung dan pembuluh darah yang baik. Pertahankan pola hidup sehat seperti konsumsi makanan rendah garam, rutin berolahraga, serta mengelola stres dengan baik.";
   } else if (s <= 139 && d <= 89) {
-    status = "Pra-Hipertensi";
+    status = "Normal Tinggi";
     keterangan = "Tekanan darah Anda sedikit di atas normal dan berisiko berkembang menjadi hipertensi jika tidak dikontrol. Disarankan untuk mulai mengurangi konsumsi garam, menjaga berat badan, serta meningkatkan aktivitas fisik.";
+  } else if (s <= 159 && d <= 99) {
+    status = "Hipertensi 1";
+  } else if (s <= 179 && d <= 109) {
+    status = "Hipertensi 2";
   }
 
   return {
@@ -82,12 +89,32 @@ const getAsamUratStatusDanPesan = (asamUrat, jenisKelamin = "pria") => {
   if (nilai === null) return null;
 
   const gender = String(jenisKelamin || "pria").toLowerCase();
-  const batasNormal = gender === "wanita" ? 6 : 7;
+  let status = "Normal";
+  let keterangan = "Kadar asam urat Anda dalam batas normal. Pertahankan pola makan sehat dan cukup minum air putih.";
 
-  const status = nilai <= batasNormal ? "Normal" : "Tinggi";
-  const keterangan = status === "Normal"
-    ? "Kadar asam urat Anda dalam batas normal. Pertahankan pola makan sehat dan cukup minum air putih."
-    : "Kadar asam urat yang tinggi dapat menyebabkan nyeri sendi. Hindari makanan tinggi purin seperti jeroan dan seafood, serta perbanyak konsumsi air putih.";
+  if (gender === "wanita") {
+    if (nilai >= 8) {
+      status = "Bahaya";
+      keterangan = "Kadar asam urat yang tinggi dapat menyebabkan nyeri sendi. Hindari makanan tinggi purin seperti jeroan dan seafood, serta perbanyak konsumsi air putih.";
+    } else if (nilai > 7) {
+      status = "Tinggi";
+      keterangan = "Kadar asam urat yang tinggi dapat menyebabkan nyeri sendi. Hindari makanan tinggi purin seperti jeroan dan seafood, serta perbanyak konsumsi air putih.";
+    } else if (nilai >= 6) {
+      status = "Waspada";
+      keterangan = "Kadar asam urat yang tinggi dapat menyebabkan nyeri sendi. Hindari makanan tinggi purin seperti jeroan dan seafood, serta perbanyak konsumsi air putih.";
+    }
+  } else {
+    if (nilai >= 9) {
+      status = "Bahaya";
+      keterangan = "Kadar asam urat yang tinggi dapat menyebabkan nyeri sendi. Hindari makanan tinggi purin seperti jeroan dan seafood, serta perbanyak konsumsi air putih.";
+    } else if (nilai > 8) {
+      status = "Tinggi";
+      keterangan = "Kadar asam urat yang tinggi dapat menyebabkan nyeri sendi. Hindari makanan tinggi purin seperti jeroan dan seafood, serta perbanyak konsumsi air putih.";
+    } else if (nilai >= 7) {
+      status = "Waspada";
+      keterangan = "Kadar asam urat yang tinggi dapat menyebabkan nyeri sendi. Hindari makanan tinggi purin seperti jeroan dan seafood, serta perbanyak konsumsi air putih.";
+    }
+  }
 
   return {
     kategori: "Asam Urat",
@@ -110,7 +137,7 @@ const getGulaDarahStatusDanPesan = (gulaDarah) => {
     status = "Normal";
     keterangan = "Kadar gula darah Anda berada dalam batas normal. Pertahankan pola makan seimbang dan aktivitas fisik secara rutin.";
   } else if (nilai < 200) {
-    status = "Pra-Diabetes";
+    status = "Prediabetes";
     keterangan = "Kadar gula darah Anda sedikit di atas normal dan berisiko berkembang menjadi diabetes. Disarankan untuk mengurangi konsumsi gula dan menjaga berat badan.";
   }
 
@@ -128,7 +155,7 @@ const getImtStatusDanPesan = (bmi) => {
   const nilai = toMetricNumber(bmi);
   if (nilai === null) return null;
 
-  let status = "Obesitas";
+  let status = "Obesitas 2";
   let keterangan = "Berat badan Anda berada pada kategori obesitas yang berisiko terhadap berbagai penyakit. Disarankan untuk melakukan perubahan gaya hidup dan konsultasi dengan tenaga kesehatan.";
 
   if (nilai < 18.5) {
@@ -140,6 +167,8 @@ const getImtStatusDanPesan = (bmi) => {
   } else if (nilai <= 24.9) {
     status = "Overweight";
     keterangan = "Berat badan Anda melebihi batas normal. Disarankan untuk mulai mengatur pola makan dan meningkatkan aktivitas fisik.";
+  } else if (nilai <= 29.9) {
+    status = "Obesitas 1";
   }
 
   return {
