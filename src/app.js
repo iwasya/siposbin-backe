@@ -25,7 +25,10 @@ app.use((req, res, next) => {
 
 app.use(cors());
 app.use(express.json());
-app.use(compression());
+app.use(compression({
+  level: 6,
+  threshold: 1024
+}));
 app.use('/api/auth', authRoutes);
 app.use('/api/posbindu', posbinduRoutes);
 app.use('/api/jadwal', jadwalRoutes);
