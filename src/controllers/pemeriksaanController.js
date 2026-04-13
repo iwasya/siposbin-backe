@@ -38,6 +38,7 @@ const getBMIStatus = (bmi) => {
    TEKANAN DARAH
 ========================= */
 const getTekananDarah = (s, d) => {
+  if (s < 90 || d < 60) return "Rendah";
   if (s < 120 && d < 80) return "Optimal";
   if (s <= 129 && d <= 84) return "Normal";
   if (s <= 139 && d <= 89) return "Normal Tinggi";
@@ -50,6 +51,7 @@ const getTekananDarah = (s, d) => {
    GULA DARAH
 ========================= */
 const getGulaDarah = (gds) => {
+  if (gds < 70) return "Rendah";
   if (gds >= 200) return "Diabetes";
   if (gds >= 140) return "Prediabetes";
   return "Normal";
@@ -59,6 +61,7 @@ const getGulaDarah = (gds) => {
    KOLESTEROL
 ========================= */
 const getKolesterol = (val) => {
+  if (val < 120) return "Rendah";
   if (val >= 240) return "Tinggi";
   if (val >= 200) return "Waspada";
   return "Normal";
@@ -68,6 +71,7 @@ const getKolesterol = (val) => {
    ASAM URAT
 ========================= */
 const getAsamUrat = (val, gender = "pria") => {
+  if (val < 2) return "Rendah";
   if (gender === "pria") {
     if (val >= 9) return "Bahaya";
     if (val > 8) return "Tinggi";
@@ -108,10 +112,12 @@ const calculateStatusFinal = (data) => {
   ) return "Risiko";
 
   if (
+    hasil.includes("Rendah") ||
     hasil.includes("Normal Tinggi") ||
     hasil.includes("Hipertensi 1") ||
     hasil.includes("Waspada") ||
-    hasil.includes("Overweight")
+    hasil.includes("Overweight") ||
+    hasil.includes("Kurus")
   ) return "Waspada";
 
   return "Normal";
