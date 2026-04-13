@@ -34,7 +34,10 @@ const getTekananDarahStatusDanPesan = (sistolik, diastolik) => {
   let status = "Hipertensi 3";
   let keterangan = "Tekanan darah Anda berada di atas batas normal dan berisiko menyebabkan penyakit jantung atau stroke. Segera lakukan perubahan gaya hidup sehat dan konsultasikan ke tenaga kesehatan.";
 
-  if (s < 120 && d < 80) {
+  if (s < 90 || d < 60) {
+    status = "Rendah";
+    keterangan = "Tekanan darah Anda berada di bawah batas normal (kurang dari 90/60 mmHg). Kondisi ini dapat menyebabkan pusing, lemas, atau pingsan. Disarankan untuk mencukupi cairan, makan teratur, dan bangun perlahan dari posisi duduk atau berbaring.";
+  } else if (s < 120 && d < 80) {
     status = "Optimal";
     keterangan = "Tekanan darah Anda berada dalam rentang normal, yang menunjukkan kondisi jantung dan pembuluh darah yang baik. Pertahankan pola hidup sehat seperti konsumsi makanan rendah garam, rutin berolahraga, serta mengelola stres dengan baik.";
   } else if (s <= 129 && d <= 84) {
@@ -66,7 +69,10 @@ const getKolesterolStatusDanPesan = (kolesterol) => {
   let status = "Tinggi";
   let keterangan = "Kadar kolesterol yang tinggi dapat meningkatkan risiko penyakit jantung. Segera lakukan perubahan pola makan dan konsultasi dengan tenaga kesehatan.";
 
-  if (nilai < 200) {
+  if (nilai < 120) {
+    status = "Rendah";
+    keterangan = "Kadar kolesterol terlalu rendah dapat memengaruhi fungsi tubuh. Disarankan tetap konsumsi lemak sehat seperti ikan dan kacang-kacangan serta pola makan seimbang.";
+  } else if (nilai < 200) {
     status = "Normal";
     keterangan = "Kadar kolesterol Anda masih dalam batas aman. Tetap jaga pola makan sehat dengan mengurangi lemak jenuh dan rutin berolahraga.";
   } else if (nilai < 240) {
@@ -92,7 +98,10 @@ const getAsamUratStatusDanPesan = (asamUrat, jenisKelamin = "pria") => {
   let status = "Normal";
   let keterangan = "Kadar asam urat Anda dalam batas normal. Pertahankan pola makan sehat dan cukup minum air putih.";
 
-  if (gender === "wanita") {
+  if (nilai < 2) {
+    status = "Rendah";
+    keterangan = "Kadar asam urat rendah (<2 mg/dL) jarang terjadi namun perlu diperhatikan. Pastikan asupan nutrisi cukup dan lakukan pemeriksaan lanjutan bila perlu.";
+  } else if (gender === "wanita") {
     if (nilai >= 8) {
       status = "Bahaya";
       keterangan = "Kadar asam urat yang tinggi dapat menyebabkan nyeri sendi. Hindari makanan tinggi purin seperti jeroan dan seafood, serta perbanyak konsumsi air putih.";
@@ -133,7 +142,10 @@ const getGulaDarahStatusDanPesan = (gulaDarah) => {
   let status = "Diabetes";
   let keterangan = "Kadar gula darah Anda tinggi dan menunjukkan risiko diabetes. Segera konsultasikan dengan tenaga kesehatan untuk penanganan lebih lanjut.";
 
-  if (nilai < 140) {
+  if (nilai < 70) {
+    status = "Rendah";
+    keterangan = "Kadar gula darah Anda berada di bawah normal (kurang dari 70 mg/dL). Dapat menyebabkan gemetar, lemas, dan pusing. Segera konsumsi makanan atau minuman manis dan jaga pola makan teratur.";
+  } else if (nilai < 140) {
     status = "Normal";
     keterangan = "Kadar gula darah Anda berada dalam batas normal. Pertahankan pola makan seimbang dan aktivitas fisik secara rutin.";
   } else if (nilai < 200) {
@@ -160,7 +172,7 @@ const getImtStatusDanPesan = (bmi) => {
 
   if (nilai < 18.5) {
     status = "Kurus";
-    keterangan = "Berat badan Anda berada di bawah normal. Disarankan untuk meningkatkan asupan nutrisi secara seimbang.";
+    keterangan = "IMT di bawah 18,5 menunjukkan berat badan kurang. Disarankan meningkatkan asupan kalori dan nutrisi serta menjaga pola makan teratur.";
   } else if (nilai <= 22.9) {
     status = "Normal";
     keterangan = "Indeks massa tubuh Anda berada dalam kategori ideal. Pertahankan pola makan sehat dan aktivitas fisik yang cukup.";
