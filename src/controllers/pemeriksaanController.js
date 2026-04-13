@@ -442,7 +442,6 @@ exports.createPemeriksaan = async (req, res) => {
         berat_badan: bb,
         tinggi_badan: tb,
         bmi,
-        penjelasan,
         created_by: id_user
       }])
       .select()
