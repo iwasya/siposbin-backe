@@ -35,9 +35,7 @@ const loadControllerWithSupabaseMock = (supabaseMock) => {
 const createCreatePemeriksaanSupabaseMock = () => {
   const calls = {
     pemeriksaanInsert: null,
-    interpretasiInsert: null,
-    recommendedStatus: null,
-    excludedStatus: null
+    interpretasiInsert: null
   };
 
   const supabase = {
@@ -77,22 +75,25 @@ const createCreatePemeriksaanSupabaseMock = () => {
 
       if (table === 'edukasi') {
         return {
-          select() {
+          async select() {
             return {
-              async ilike(_field, status) {
-                calls.recommendedStatus = status;
-                return {
-                  data: [{ id_edukasi: 1, judul: 'Edukasi Risiko' }],
-                  error: null
-                };
-              },
-              async not(_field, _operator, status) {
-                calls.excludedStatus = status;
-                return {
-                  data: [{ id_edukasi: 2, judul: 'Edukasi Lain' }],
-                  error: null
-                };
-              }
+              data: [
+                {
+                  id_edukasi: 1,
+                  target_status: 'Risiko Tinggi',
+                  kategori: 'Diabetes',
+                  judul: 'Edukasi Diabetes',
+                  deskripsi: 'Segera konsultasi tenaga medis'
+                },
+                {
+                  id_edukasi: 2,
+                  target_status: 'Normal',
+                  kategori: 'Pola hidup sehat',
+                  judul: 'Edukasi Umum',
+                  deskripsi: 'Olahraga dan nutrisi'
+                }
+              ],
+              error: null
             };
           }
         };
@@ -221,7 +222,7 @@ module.exports = [
       assert.equal(res.statusCode, 400);
       assert.equal(
         res.body.message,
-        'Berat & tinggi badan wajib diisi dengan angka lebih dari 0'
+        'Berat & tinggi badan wajib valid'
       );
     }
   },
@@ -248,12 +249,11 @@ module.exports = [
       await createPemeriksaan(req, res);
 
       assert.equal(res.statusCode, 201);
-      assert.equal(res.body.status_user, 'Risiko');
+      assert.equal(res.body.status, 'Risiko Tinggi');
       assert.ok(calls.pemeriksaanInsert);
       assert.ok(calls.interpretasiInsert);
-      assert.equal(calls.interpretasiInsert[0].status_kesehatan, 'Risiko');
-      assert.equal(calls.recommendedStatus, 'Risiko');
-      assert.equal(calls.excludedStatus, 'Risiko');
+      assert.equal(calls.interpretasiInsert[0].status_kesehatan, 'Risiko Tinggi');
+      assert.equal(res.body.rekomendasi[0].id_edukasi, 1);
       assert.equal(calls.pemeriksaanInsert[0].berat_badan, 81);
       assert.equal(calls.pemeriksaanInsert[0].tinggi_badan, 180);
       assert.ok(Math.abs(calls.pemeriksaanInsert[0].bmi - 25) < 0.0001);
@@ -284,8 +284,15 @@ module.exports = [
       assert.equal(res.statusCode, 200);
       assert.ok(calls.pemeriksaanUpdate);
       assert.ok(Math.abs(calls.pemeriksaanUpdate.bmi - 27.7777777778) < 0.0001);
-      assert.deepEqual(calls.interpretasiUpdate, { status_kesehatan: 'Waspada' });
-      assert.equal(res.body.data.interpretasi.status_kesehatan, 'Waspada');
+      assert.deepEqual(calls.interpretasiUpdate, {
+        status_kesehatan: 'Risiko',
+        tekanan_darah: 'Normal Tinggi',
+        gula_darah: 'Prediabetes',
+        kolesterol: 'Waspada',
+        asam_urat: 'Normal',
+        bmi_status: 'Obesitas 1'
+      });
+      assert.equal(res.body.data.interpretasi.status_kesehatan, 'Risiko');
     }
   }
 ];

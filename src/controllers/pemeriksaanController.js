@@ -849,8 +849,8 @@ exports.updatePemeriksaan = async (req, res) => {
       });
     }
 
-    const { error: pemeriksaanError } = await supabase
-      .from('pemeriksaan')
+    const { error: interpretasiError } = await supabase
+      .from('interpretasi')
       .update({
         status_kesehatan: status,
         tekanan_darah: tekananDarah,
