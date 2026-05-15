@@ -253,9 +253,46 @@ exports.updateUser = async (req, res) => {
     const { id } = req.params;
     const { nama, email, password, id_posbindu, id_role } = req.body;
 
-    if (!nama || !email) {
+    let updateData = {};
+
+    if (nama !== undefined) {
+      if (!nama) {
+        return res.status(400).json({
+          message: "Nama tidak boleh kosong"
+        });
+      }
+
+      updateData.nama = nama;
+    }
+
+    if (email !== undefined) {
+      if (!email) {
+        return res.status(400).json({
+          message: "Email tidak boleh kosong"
+        });
+      }
+
+      updateData.email = email;
+    }
+
+    if (id_posbindu !== undefined) updateData.id_posbindu = id_posbindu;
+    if (id_role !== undefined) updateData.id_role = id_role;
+
+    // jika password dikirim maka hash password
+    if (password !== undefined) {
+      if (typeof password !== "string" || password.trim() === "") {
+        return res.status(400).json({
+          message: "Password tidak boleh kosong"
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateData.password = hashedPassword;
+    }
+
+    if (Object.keys(updateData).length === 0) {
       return res.status(400).json({
-        message: "Nama dan email wajib diisi"
+        message: "Tidak ada data yang diupdate"
       });
     }
 
@@ -272,22 +309,6 @@ exports.updateUser = async (req, res) => {
       return res.status(404).json({
         message: "User tidak ditemukan"
       });
-    }
-
-    let updateData = {
-      nama,
-      email,
-      id_posbindu,
-      id_role
-    };
-
-    // jika password dikirim maka hash password
-    if (password) {
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      updateData.password = hashedPassword;
-
     }
 
     const { data, error } = await supabase

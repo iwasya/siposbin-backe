@@ -4,6 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "node test/run-tests.js",
+    "test:blackbox": "node test/run-blackbox.js",
+    "test:live-blackbox": "node test/run-live-blackbox.js",
     "test:smoke": "node test/run-smoke.js",
     "dev": "nodemon server.js",
     "start": "node server.js"
