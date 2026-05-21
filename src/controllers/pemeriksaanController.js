@@ -19,6 +19,24 @@ const toMetricNumber = (value, defaultValue = 0) => {
   return parsed;
 };
 
+const toRequiredPositiveMetricNumber = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+};
+
+const toOptionalPositiveMetricNumber = (value) => {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  return toRequiredPositiveMetricNumber(value);
+};
+
+const normalizeJenisKelamin = (value) => {
+  const normalized = String(value || "pria").toLowerCase().trim();
+  return normalized === "perempuan" || normalized === "wanita" ? "perempuan" : "pria";
+};
+
 /* =========================
    BMI
 ========================= */
@@ -59,9 +77,17 @@ const getGulaDarah = (gds) => {
 /* =========================
    KOLESTEROL
 ========================= */
-const getKolesterol = (val) => {
+const getKolesterol = (val, jenisKelamin = "pria", hdl = null) => {
   if (val >= 240) return "Tinggi";
   if (val >= 200) return "Waspada";
+
+  if (hdl !== null) {
+    const normalizedGender = normalizeJenisKelamin(jenisKelamin);
+    const minimumHdl = normalizedGender === "perempuan" ? 50 : 40;
+
+    if (hdl < minimumHdl) return "Waspada";
+  }
+
   return "Normal";
 };
 
@@ -460,12 +486,14 @@ const buildInterpretasi = ({
   kolesterol,
   asamUrat,
   bmi,
+  hdl = null,
   jenisKelamin = "pria"
 }) => {
+  const normalizedJenisKelamin = normalizeJenisKelamin(jenisKelamin);
   const tekananDarah = getTekananDarah(sistolik, diastolik);
   const gula = getGulaDarah(gulaDarah);
-  const kol = getKolesterol(kolesterol);
-  const asam = getAsamUrat(asamUrat, jenisKelamin);
+  const kol = getKolesterol(kolesterol, normalizedJenisKelamin, hdl);
+  const asam = getAsamUrat(asamUrat, normalizedJenisKelamin);
   const bmiStatus = getBMIStatus(bmi);
 
   const status = calculateStatusFinal({
@@ -492,11 +520,13 @@ const buildInterpretasi = ({
 exports.createPemeriksaan = async (req, res) => {
   try {
     const {
-      sistolik = 0,
-      diastolik = 0,
-      gula_darah = 0,
-      kolesterol = 0,
-      asam_urat = 0,
+      sistolik,
+      diastolik,
+      gula_darah,
+      kolesterol,
+      hdl,
+      hdl_kolesterol,
+      asam_urat,
       berat_badan,
       tinggi_badan,
       jenis_kelamin = "pria"
@@ -507,18 +537,26 @@ exports.createPemeriksaan = async (req, res) => {
     const bb = toPositiveNumber(berat_badan);
     const tb = toPositiveNumber(tinggi_badan);
 
-    const s = toMetricNumber(sistolik);
-    const d = toMetricNumber(diastolik);
-    const g = toMetricNumber(gula_darah);
-    const k = toMetricNumber(kolesterol);
-    const a = toMetricNumber(asam_urat);
+    const s = toRequiredPositiveMetricNumber(sistolik);
+    const d = toRequiredPositiveMetricNumber(diastolik);
+    const g = toRequiredPositiveMetricNumber(gula_darah);
+    const k = toRequiredPositiveMetricNumber(kolesterol);
+    const h = toOptionalPositiveMetricNumber(hdl ?? hdl_kolesterol);
+    const a = toRequiredPositiveMetricNumber(asam_urat);
 
     if (!bb || !tb) {
       return res.status(400).json({ message: "Berat & tinggi badan wajib valid" });
     }
 
-    if (s === null || d === null || g === null || k === null || a === null) {
-      return res.status(400).json({ message: "Data harus angka valid" });
+    if (
+      s === null ||
+      d === null ||
+      g === null ||
+      k === null ||
+      a === null ||
+      (h === null && (hdl !== undefined || hdl_kolesterol !== undefined))
+    ) {
+      return res.status(400).json({ message: "Data pemeriksaan wajib diisi dan harus lebih dari 0" });
     }
 
     // ======================
@@ -540,6 +578,7 @@ exports.createPemeriksaan = async (req, res) => {
       kolesterol: k,
       asamUrat: a,
       bmi,
+      hdl: h,
       jenisKelamin: jenis_kelamin
     });
     const penjelasan = getPenjelasan(status);
@@ -750,6 +789,8 @@ exports.updatePemeriksaan = async (req, res) => {
       diastolik,
       gula_darah,
       kolesterol,
+      hdl,
+      hdl_kolesterol,
       asam_urat,
       berat_badan,
       tinggi_badan,
@@ -786,6 +827,7 @@ exports.updatePemeriksaan = async (req, res) => {
     const parsedDiastolik = toMetricNumber(diastolik, existingPemeriksaan.diastolik ?? 0);
     const parsedGulaDarah = toMetricNumber(gula_darah, existingPemeriksaan.gula_darah ?? 0);
     const parsedKolesterol = toMetricNumber(kolesterol, existingPemeriksaan.kolesterol ?? 0);
+    const parsedHdl = toOptionalPositiveMetricNumber(hdl ?? hdl_kolesterol);
     const parsedAsamUrat = toMetricNumber(asam_urat, existingPemeriksaan.asam_urat ?? 0);
     const parsedBeratBadan = berat_badan === undefined
       ? toPositiveNumber(existingPemeriksaan.berat_badan)
@@ -799,6 +841,7 @@ exports.updatePemeriksaan = async (req, res) => {
       parsedDiastolik === null ||
       parsedGulaDarah === null ||
       parsedKolesterol === null ||
+      (parsedHdl === null && (hdl !== undefined || hdl_kolesterol !== undefined)) ||
       parsedAsamUrat === null ||
       !parsedBeratBadan ||
       !parsedTinggiBadan
@@ -823,6 +866,7 @@ exports.updatePemeriksaan = async (req, res) => {
       kolesterol: parsedKolesterol,
       asamUrat: parsedAsamUrat,
       bmi,
+      hdl: parsedHdl,
       jenisKelamin: jenis_kelamin
     });
 

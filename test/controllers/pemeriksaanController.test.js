@@ -227,6 +227,65 @@ module.exports = [
     }
   },
   {
+    name: 'createPemeriksaan menolak metrik pemeriksaan yang tidak lengkap',
+    async run() {
+      const { createPemeriksaan } = loadControllerWithSupabaseMock({
+        from() {
+          throw new Error('Supabase should not be called for invalid payload');
+        }
+      });
+
+      const req = {
+        user: { id: 7 },
+        body: {
+          berat_badan: 60,
+          tinggi_badan: 165
+        }
+      };
+      const res = createResponse();
+
+      await createPemeriksaan(req, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.equal(
+        res.body.message,
+        'Data pemeriksaan wajib diisi dan harus lebih dari 0'
+      );
+    }
+  },
+  {
+    name: 'createPemeriksaan menolak metrik pemeriksaan bernilai 0',
+    async run() {
+      const { createPemeriksaan } = loadControllerWithSupabaseMock({
+        from() {
+          throw new Error('Supabase should not be called for invalid payload');
+        }
+      });
+
+      const req = {
+        user: { id: 7 },
+        body: {
+          sistolik: 120,
+          diastolik: 80,
+          gula_darah: 0,
+          kolesterol: 180,
+          asam_urat: 6,
+          berat_badan: 60,
+          tinggi_badan: 165
+        }
+      };
+      const res = createResponse();
+
+      await createPemeriksaan(req, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.equal(
+        res.body.message,
+        'Data pemeriksaan wajib diisi dan harus lebih dari 0'
+      );
+    }
+  },
+  {
     name: 'createPemeriksaan menghitung BMI dan menyimpan interpretasi sesuai status',
     async run() {
       const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
@@ -257,6 +316,36 @@ module.exports = [
       assert.equal(calls.pemeriksaanInsert[0].berat_badan, 81);
       assert.equal(calls.pemeriksaanInsert[0].tinggi_badan, 180);
       assert.ok(Math.abs(calls.pemeriksaanInsert[0].bmi - 25) < 0.0001);
+    }
+  },
+  {
+    name: 'createPemeriksaan menandai kolesterol perempuan waspada jika HDL rendah',
+    async run() {
+      const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
+      const { createPemeriksaan } = loadControllerWithSupabaseMock(supabase);
+
+      const req = {
+        user: { id: 7 },
+        body: {
+          sistolik: 118,
+          diastolik: 78,
+          gula_darah: 110,
+          kolesterol: 180,
+          hdl: 45,
+          asam_urat: 5,
+          berat_badan: 55,
+          tinggi_badan: 160,
+          jenis_kelamin: 'perempuan'
+        }
+      };
+      const res = createResponse();
+
+      await createPemeriksaan(req, res);
+
+      assert.equal(res.statusCode, 201);
+      assert.equal(calls.interpretasiInsert[0].kolesterol, 'Waspada');
+      assert.equal(calls.interpretasiInsert[0].status_kesehatan, 'Waspada');
+      assert.equal(res.body.detail.kol, 'Waspada');
     }
   },
   {
