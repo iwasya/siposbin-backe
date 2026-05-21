@@ -2,12 +2,36 @@ const supabase = require('../config/supabase');
 const sharp = require('sharp');
 const bcrypt = require('bcrypt');
 
+const normalizeJenisKelamin = (value) => {
+  const normalized = String(value || '').toLowerCase().trim();
+
+  if (['l', 'laki-laki', 'laki laki', 'pria'].includes(normalized)) {
+    return 'L';
+  }
+
+  if (['p', 'perempuan', 'wanita'].includes(normalized)) {
+    return 'P';
+  }
+
+  return null;
+};
+
+const getJenisKelaminLabel = (value) => {
+  const normalized = normalizeJenisKelamin(value);
+
+  if (normalized === 'L') return 'Laki-laki';
+  if (normalized === 'P') return 'Perempuan';
+
+  return null;
+};
+
 const buildProfileResponse = (data) => ({
   id_user: data.id_user,
   nama: data.nama,
   email: data.email,
   usia: data.usia,
-  jenis_kelamin: data.jenis_kelamin,
+  jenis_kelamin: normalizeJenisKelamin(data.jenis_kelamin) || data.jenis_kelamin,
+  jenis_kelamin_label: getJenisKelaminLabel(data.jenis_kelamin),
   no_hp: data.no_hp,
   alamat: data.alamat,
   foto_profil: data.foto_profil,
@@ -77,7 +101,17 @@ exports.updateProfile = async (req, res) => {
 
     if (nama !== undefined) updateData.nama = nama;
     if (usia !== undefined) updateData.usia = usia;
-    if (jenis_kelamin !== undefined) updateData.jenis_kelamin = jenis_kelamin;
+    if (jenis_kelamin !== undefined) {
+      const normalizedJenisKelamin = normalizeJenisKelamin(jenis_kelamin);
+
+      if (!normalizedJenisKelamin) {
+        return res.status(400).json({
+          message: "Jenis kelamin harus L atau P"
+        });
+      }
+
+      updateData.jenis_kelamin = normalizedJenisKelamin;
+    }
     if (no_hp !== undefined) updateData.no_hp = no_hp;
     if (alamat !== undefined) updateData.alamat = alamat;
     if (id_posbindu !== undefined) updateData.id_posbindu = id_posbindu;
