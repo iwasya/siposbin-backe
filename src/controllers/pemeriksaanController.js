@@ -307,29 +307,52 @@ const buildBmiDetail = (status, nilai) => {
 
 const buildPengecekan = (item) => {
   const interpretasi = item?.interpretasi || {};
+  const status = {};
+  const detail = {};
+
+  if (hasInputValue(item?.sistolik) && hasInputValue(item?.diastolik)) {
+    status.tekanan_darah = interpretasi.tekanan_darah || null;
+    detail.tekanan_darah = buildTekananDarahDetail(
+      interpretasi.tekanan_darah,
+      item?.sistolik,
+      item?.diastolik
+    );
+  }
+
+  if (hasInputValue(item?.kolesterol)) {
+    status.kolesterol = interpretasi.kolesterol || null;
+    detail.kolesterol = buildKolesterolDetail(interpretasi.kolesterol, item?.kolesterol);
+  }
+
+  if (hasInputValue(item?.asam_urat)) {
+    status.asam_urat = interpretasi.asam_urat || null;
+    detail.asam_urat = buildAsamUratDetail(interpretasi.asam_urat, item?.asam_urat);
+  }
+
+  if (hasInputValue(item?.gula_darah)) {
+    status.gula_darah = interpretasi.gula_darah || null;
+    detail.gula_darah = buildGulaDarahDetail(interpretasi.gula_darah, item?.gula_darah);
+  }
+
+  if (hasInputValue(item?.bmi)) {
+    status.bmi_status = interpretasi.bmi_status || null;
+    detail.bmi_status = buildBmiDetail(interpretasi.bmi_status, item?.bmi);
+  }
 
   return {
     tanggal_pemeriksaan: formatToJakartaDateTime(item?.tanggal_pemeriksaan),
-    status: {
-      tekanan_darah: interpretasi.tekanan_darah || null,
-      kolesterol: interpretasi.kolesterol || null,
-      asam_urat: interpretasi.asam_urat || null,
-      gula_darah: interpretasi.gula_darah || null,
-      bmi_status: interpretasi.bmi_status || null
-    },
-    detail: {
-      tekanan_darah: buildTekananDarahDetail(
-        interpretasi.tekanan_darah,
-        item?.sistolik,
-        item?.diastolik
-      ),
-      kolesterol: buildKolesterolDetail(interpretasi.kolesterol, item?.kolesterol),
-      asam_urat: buildAsamUratDetail(interpretasi.asam_urat, item?.asam_urat),
-      gula_darah: buildGulaDarahDetail(interpretasi.gula_darah, item?.gula_darah),
-      bmi_status: buildBmiDetail(interpretasi.bmi_status, item?.bmi)
-    }
+    status,
+    detail
   };
 };
+
+const buildStatusSummary = (interpretasi = {}) => ({
+  tekananDarah: interpretasi?.tekanan_darah || "Tidak diketahui",
+  gula: interpretasi?.gula_darah || "Tidak diketahui",
+  kol: interpretasi?.kolesterol || "Tidak diketahui",
+  asam: interpretasi?.asam_urat || "Tidak diketahui",
+  bmiStatus: interpretasi?.bmi_status || "Tidak diketahui"
+});
 
 const getStatusCandidates = (status) => {
   const normalized = normalizeStatusLabel(status);
@@ -761,13 +784,7 @@ exports.getPemeriksaan = async (req, res) => {
           created_at: formatToJakartaDateTime(item.created_at),
           pengecekan: buildPengecekan(item),
           penjelasan: getPenjelasan(status),
-          detail: {
-            tekananDarah: item.interpretasi?.tekanan_darah || "Tidak diketahui",
-            gula: item.interpretasi?.gula_darah || "Tidak diketahui",
-            kol: item.interpretasi?.kolesterol || "Tidak diketahui",
-            asam: item.interpretasi?.asam_urat || "Tidak diketahui",
-            bmiStatus: item.interpretasi?.bmi_status || "Tidak diketahui"
-          },
+          detail: buildStatusSummary(item.interpretasi),
           recommended: recommended || []
         };
       })
@@ -823,6 +840,8 @@ exports.getPemeriksaanById = async (req, res) => {
       ...pemeriksaan,
       created_at: formatToJakartaDateTime(pemeriksaan.created_at),
       pengecekan: buildPengecekan(pemeriksaan),
+      penjelasan: getPenjelasan(status),
+      detail: buildStatusSummary(pemeriksaan.interpretasi),
       recommended
     });
 

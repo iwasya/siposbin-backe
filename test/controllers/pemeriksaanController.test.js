@@ -219,6 +219,82 @@ const createUpdatePemeriksaanSupabaseMock = () => {
   return { supabase, calls };
 };
 
+const createGetPemeriksaanByIdSupabaseMock = (pemeriksaanOverride = {}) => {
+  const calls = {
+    pemeriksaanFilters: []
+  };
+
+  const interpretasi = {
+    status_kesehatan: 'Risiko',
+    tekanan_darah: 'Normal Tinggi',
+    gula_darah: 'Prediabetes',
+    kolesterol: 'Waspada',
+    asam_urat: 'Normal',
+    bmi_status: 'Obesitas 1',
+    ...(pemeriksaanOverride.interpretasi || {})
+  };
+
+  const pemeriksaan = {
+    id_pemeriksaan: 10,
+    id_user: 7,
+    tanggal_pemeriksaan: '2026-06-04T01:30:00.000Z',
+    created_at: '2026-06-04T01:31:00.000Z',
+    sistolik: 130,
+    diastolik: 85,
+    gula_darah: 150,
+    kolesterol: 205,
+    asam_urat: 6,
+    berat_badan: 90,
+    tinggi_badan: 180,
+    bmi: 27.7777777778,
+    ...pemeriksaanOverride,
+    interpretasi
+  };
+
+  const supabase = {
+    from(table) {
+      if (table === 'pemeriksaan') {
+        return {
+          select() {
+            return {
+              eq(column, value) {
+                calls.pemeriksaanFilters.push([column, value]);
+                return this;
+              },
+              async single() {
+                return { data: pemeriksaan, error: null };
+              }
+            };
+          }
+        };
+      }
+
+      if (table === 'edukasi') {
+        return {
+          async select() {
+            return {
+              data: [
+                {
+                  id_edukasi: 4,
+                  target_status: 'Risiko',
+                  kategori: 'Diabetes',
+                  judul: 'Cara Mengontrol Gula Darah',
+                  deskripsi: 'Pantau gula darah dan glukosa'
+                }
+              ],
+              error: null
+            };
+          }
+        };
+      }
+
+      throw new Error(`Unexpected table access: ${table}`);
+    }
+  };
+
+  return { supabase, calls };
+};
+
 module.exports = [
   {
     name: 'createPemeriksaan menolak tinggi badan 0 agar BMI tidak invalid',
@@ -245,6 +321,74 @@ module.exports = [
         res.body.message,
         'Data harus angka valid dan lebih dari 0'
       );
+    }
+  },
+  {
+    name: 'getPemeriksaanById mengembalikan detail ringkas dan pengecekan lengkap',
+    async run() {
+      const { supabase, calls } = createGetPemeriksaanByIdSupabaseMock();
+      const { getPemeriksaanById } = loadControllerWithSupabaseMock(supabase);
+
+      const req = {
+        params: { id: '10' },
+        user: { id: 7 }
+      };
+      const res = createResponse();
+
+      await getPemeriksaanById(req, res);
+
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(calls.pemeriksaanFilters, [
+        ['id_pemeriksaan', '10'],
+        ['id_user', 7]
+      ]);
+      assert.equal(res.body.penjelasan, 'Beberapa indikator menunjukkan risiko kesehatan. Disarankan konsultasi dan perbaikan gaya hidup.');
+      assert.deepEqual(res.body.detail, {
+        tekananDarah: 'Normal Tinggi',
+        gula: 'Prediabetes',
+        kol: 'Waspada',
+        asam: 'Normal',
+        bmiStatus: 'Obesitas 1'
+      });
+      assert.equal(res.body.pengecekan.detail.gula_darah.status, 'Prediabetes');
+      assert.equal(res.body.pengecekan.detail.bmi_status.nilai, 27.8);
+      assert.equal(res.body.recommended[0].id_edukasi, 4);
+    }
+  },
+  {
+    name: 'getPemeriksaanById tidak mengembalikan detail pemeriksaan yang nilainya kosong',
+    async run() {
+      const { supabase } = createGetPemeriksaanByIdSupabaseMock({
+        gula_darah: null,
+        kolesterol: null,
+        asam_urat: null,
+        berat_badan: null,
+        tinggi_badan: null,
+        bmi: null,
+        interpretasi: {
+          status_kesehatan: 'Normal',
+          tekanan_darah: 'Normal',
+          gula_darah: null,
+          kolesterol: null,
+          asam_urat: null,
+          bmi_status: null
+        }
+      });
+      const { getPemeriksaanById } = loadControllerWithSupabaseMock(supabase);
+
+      const req = {
+        params: { id: '10' },
+        user: { id: 7 }
+      };
+      const res = createResponse();
+
+      await getPemeriksaanById(req, res);
+
+      assert.equal(res.statusCode, 200);
+      assert.deepEqual(Object.keys(res.body.pengecekan.detail), ['tekanan_darah']);
+      assert.deepEqual(Object.keys(res.body.pengecekan.status), ['tekanan_darah']);
+      assert.equal(res.body.pengecekan.detail.tekanan_darah.nilai, '130/85');
+      assert.equal(res.body.pengecekan.detail.tekanan_darah.status, 'Normal');
     }
   },
   {
