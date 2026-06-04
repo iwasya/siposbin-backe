@@ -91,6 +91,27 @@ const createCreatePemeriksaanSupabaseMock = () => {
                   kategori: 'Pola hidup sehat',
                   judul: 'Edukasi Umum',
                   deskripsi: 'Olahraga dan nutrisi'
+                },
+                {
+                  id_edukasi: 3,
+                  target_status: 'Normal',
+                  kategori: 'Hipertensi',
+                  judul: 'Cara Mengontrol Tekanan Darah',
+                  deskripsi: 'Kontrol sistolik dan diastolik secara berkala'
+                },
+                {
+                  id_edukasi: 4,
+                  target_status: 'Normal',
+                  kategori: 'Diabetes',
+                  judul: 'Cara Mengontrol Gula Darah',
+                  deskripsi: 'Pantau gula darah dan glukosa'
+                },
+                {
+                  id_edukasi: 5,
+                  target_status: 'Normal',
+                  kategori: 'Umum',
+                  judul: 'Cara Mengontrol Asam Urat',
+                  deskripsi: 'Kurangi purin untuk menjaga asam urat'
                 }
               ],
               error: null
@@ -306,6 +327,30 @@ module.exports = [
       assert.equal(calls.interpretasiInsert[0].gula_darah, 'Normal');
       assert.equal(calls.interpretasiInsert[0].tekanan_darah, null);
       assert.equal(calls.interpretasiInsert[0].bmi_status, null);
+    }
+  },
+  {
+    name: 'createPemeriksaan hanya merekomendasikan edukasi sesuai kolom yang diisi',
+    async run() {
+      const { supabase } = createCreatePemeriksaanSupabaseMock();
+      const { createPemeriksaan } = loadControllerWithSupabaseMock(supabase);
+
+      const req = {
+        user: { id: 7 },
+        body: {
+          sistolik: 120,
+          diastolik: 80
+        }
+      };
+      const res = createResponse();
+
+      await createPemeriksaan(req, res);
+
+      assert.equal(res.statusCode, 201);
+      assert.deepEqual(
+        res.body.rekomendasi.map((item) => item.id_edukasi),
+        [3]
+      );
     }
   },
   {

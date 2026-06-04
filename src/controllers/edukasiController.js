@@ -1,6 +1,158 @@
 const supabase = require('../config/supabase');
 const { formatToJakartaDateTime } = require('../utils/dateTime');
 
+const normalizeStatusLabel = (value) => {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace("resiko", "risiko");
+};
+
+const normalizeText = (value) => {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const getStatusCandidates = (status) => {
+  const normalized = normalizeStatusLabel(status);
+
+  if (normalized === "risiko tinggi") {
+    return ["risiko tinggi", "risiko", "waspada", "normal"];
+  }
+  if (normalized === "risiko") {
+    return ["risiko", "waspada", "normal"];
+  }
+  if (normalized === "waspada") {
+    return ["waspada", "normal"];
+  }
+  if (normalized === "normal") {
+    return ["normal"];
+  }
+
+  return [normalized];
+};
+
+const buildRecommendationSignals = (status, interpretasi = null) => {
+  const tekananDarah = normalizeStatusLabel(interpretasi?.tekanan_darah);
+  const gula = normalizeStatusLabel(interpretasi?.gula_darah);
+  const kolesterol = normalizeStatusLabel(interpretasi?.kolesterol);
+  const asamUrat = normalizeStatusLabel(interpretasi?.asam_urat);
+  const bmiStatus = normalizeStatusLabel(interpretasi?.bmi_status);
+
+  const signals = [];
+
+  if (tekananDarah) {
+    signals.push({
+      isTopic: true,
+      weight: 40,
+      keywords: ["hipertensi", "tekanan darah", "darah tinggi", "sistolik", "diastolik"]
+    });
+  }
+
+  if (gula) {
+    signals.push({
+      isTopic: true,
+      weight: 35,
+      keywords: ["gula darah", "diabetes", "prediabetes", "glukosa"]
+    });
+  }
+
+  if (kolesterol) {
+    signals.push({
+      isTopic: true,
+      weight: 30,
+      keywords: ["kolesterol", "lemak darah", "ldl", "hdl", "trigliserida"]
+    });
+  }
+
+  if (asamUrat) {
+    signals.push({
+      isTopic: true,
+      weight: 30,
+      keywords: ["asam urat", "purin", "sendi"]
+    });
+  }
+
+  if (bmiStatus) {
+    signals.push({
+      isTopic: true,
+      weight: 25,
+      keywords: ["bmi", "berat badan", "obesitas", "overweight", "aktivitas fisik"]
+    });
+  }
+
+  if (signals.length === 0) return [];
+
+  const normalizedStatus = normalizeStatusLabel(status);
+  if (normalizedStatus === "risiko tinggi") {
+    signals.push({
+      isTopic: false,
+      weight: 35,
+      keywords: ["segera", "lanjutan", "tenaga medis", "dokter", "rujukan"]
+    });
+  } else if (normalizedStatus === "risiko") {
+    signals.push({
+      isTopic: false,
+      weight: 20,
+      keywords: ["konsultasi", "perbaikan", "kendalikan", "monitoring"]
+    });
+  } else if (normalizedStatus === "waspada") {
+    signals.push({
+      isTopic: false,
+      weight: 15,
+      keywords: ["waspada", "pantau", "jaga", "kontrol rutin"]
+    });
+  }
+
+  return signals;
+};
+
+const getRecommendedEdukasi = (status, interpretasi, edukasiList = [], limit = 5) => {
+  const candidates = getStatusCandidates(status);
+  const signals = buildRecommendationSignals(status, interpretasi);
+
+  if (!candidates[0] || signals.length === 0) return [];
+
+  return edukasiList
+    .map((item) => {
+      const targetStatus = normalizeStatusLabel(item.target_status);
+      const rankIndex = candidates.indexOf(targetStatus);
+      if (rankIndex < 0) return { item, score: 0 };
+
+      let score = 120 - (rankIndex * 15);
+      let totalHit = 0;
+      let topicHit = 0;
+      const searchable = normalizeText(
+        `${item.kategori || ""} ${item.judul || ""} ${item.deskripsi || ""}`
+      );
+
+      signals.forEach((signal) => {
+        let hit = 0;
+        signal.keywords.forEach((keyword) => {
+          if (searchable.includes(normalizeText(keyword))) hit += 1;
+        });
+
+        if (hit > 0) {
+          totalHit += hit;
+          if (signal.isTopic) topicHit += hit;
+          score += signal.weight + (hit * 4);
+        }
+      });
+
+      return { item, score: topicHit > 0 && totalHit > 0 ? score : 0 };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return new Date(b.item.created_at || 0) - new Date(a.item.created_at || 0);
+    })
+    .map((entry) => entry.item)
+    .slice(0, limit);
+};
+
 exports.getEdukasi = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -10,7 +162,12 @@ exports.getEdukasi = async (req, res) => {
       .from('pemeriksaan')
       .select(`
         interpretasi (
-          status_kesehatan
+          status_kesehatan,
+          tekanan_darah,
+          gula_darah,
+          kolesterol,
+          asam_urat,
+          bmi_status
         )
       `)
       .eq('id_user', userId)
@@ -51,33 +208,26 @@ exports.getEdukasi = async (req, res) => {
     // ===============================
     const status = lastCheck.interpretasi.status_kesehatan;
 
-    // Ambil recommended
-    const { data: recommended, error: recError } = await supabase
+    const { data: edukasiList, error: edukasiError } = await supabase
       .from('edukasi')
       .select('*')
-      .eq('target_status', status)
       .order('created_at', { ascending: false });
 
-    if (recError) {
-      return res.status(400).json({ error: recError.message });
+    if (edukasiError) {
+      return res.status(400).json({ error: edukasiError.message });
     }
 
+    const relatedEdukasi = getRecommendedEdukasi(
+      status,
+      lastCheck.interpretasi,
+      edukasiList || [],
+      Number.POSITIVE_INFINITY
+    );
+    const recommended = relatedEdukasi.slice(0, 5);
     const recommendedIds = recommended.map(item => item.id_edukasi);
-
-    let allQuery = supabase
-      .from('edukasi')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (recommendedIds.length > 0) {
-      allQuery = allQuery.not('id_edukasi', 'in', `(${recommendedIds.join(',')})`);
-    }
-
-    const { data: allEdukasi, error: allError } = await allQuery;
-
-    if (allError) {
-      return res.status(400).json({ error: allError.message });
-    }
+    const allEdukasi = relatedEdukasi.filter(
+      (item) => !recommendedIds.includes(item.id_edukasi)
+    );
 
     res.json({
       status_user: status,

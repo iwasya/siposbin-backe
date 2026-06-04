@@ -369,61 +369,64 @@ const buildRecommendationSignals = (status, interpretasi = null) => {
 
   const signals = [];
 
-  if (tekananDarah && !["optimal", "normal"].includes(tekananDarah)) {
+  if (tekananDarah) {
     signals.push({
+      isTopic: true,
       weight: 40,
       keywords: ["hipertensi", "tekanan darah", "darah tinggi", "sistolik", "diastolik"]
     });
   }
 
-  if (gula && gula !== "normal") {
+  if (gula) {
     signals.push({
+      isTopic: true,
       weight: 35,
       keywords: ["gula darah", "diabetes", "prediabetes", "glukosa"]
     });
   }
 
-  if (kolesterol && kolesterol !== "normal") {
+  if (kolesterol) {
     signals.push({
+      isTopic: true,
       weight: 30,
       keywords: ["kolesterol", "lemak darah", "ldl", "hdl", "trigliserida"]
     });
   }
 
-  if (asamUrat && asamUrat !== "normal") {
+  if (asamUrat) {
     signals.push({
+      isTopic: true,
       weight: 30,
       keywords: ["asam urat", "purin", "sendi"]
     });
   }
 
-  if (bmiStatus && bmiStatus !== "normal") {
+  if (bmiStatus) {
     signals.push({
+      isTopic: true,
       weight: 25,
       keywords: ["bmi", "berat badan", "obesitas", "overweight", "aktivitas fisik"]
     });
   }
 
-  if (signals.length === 0) {
-    signals.push({
-      weight: 20,
-      keywords: ["pola hidup sehat", "pencegahan", "olahraga", "nutrisi", "gaya hidup"]
-    });
-  }
+  if (signals.length === 0) return [];
 
   const normalizedStatus = normalizeStatusLabel(status);
   if (normalizedStatus === "risiko tinggi") {
     signals.push({
+      isTopic: false,
       weight: 35,
       keywords: ["segera", "lanjutan", "tenaga medis", "dokter", "rujukan"]
     });
   } else if (normalizedStatus === "risiko") {
     signals.push({
+      isTopic: false,
       weight: 20,
       keywords: ["konsultasi", "perbaikan", "kendalikan", "monitoring"]
     });
   } else if (normalizedStatus === "waspada") {
     signals.push({
+      isTopic: false,
       weight: 15,
       keywords: ["waspada", "pantau", "jaga", "kontrol rutin"]
     });
@@ -446,23 +449,22 @@ const getRecommendedEdukasi = async (status, interpretasi = null, edukasiList = 
     data = fetchedData;
   }
 
-  const byStatus = new Map();
-  data.forEach((item) => {
-    const key = normalizeStatusLabel(item.target_status);
-    if (!byStatus.has(key)) byStatus.set(key, []);
-    byStatus.get(key).push(item);
-  });
-
   const signals = buildRecommendationSignals(status, interpretasi);
+  if (signals.length === 0) return [];
+
   const ranked = data
     .map((item) => {
       const targetStatus = normalizeStatusLabel(item.target_status);
       const rankIndex = candidates.indexOf(targetStatus);
-      let score = rankIndex >= 0 ? 120 - (rankIndex * 15) : 0;
+      if (rankIndex < 0) return { item, score: 0 };
+
+      let score = 120 - (rankIndex * 15);
 
       const searchable = normalizeText(
         `${item.kategori || ""} ${item.judul || ""} ${item.deskripsi || ""}`
       );
+      let totalHit = 0;
+      let topicHit = 0;
 
       signals.forEach((signal) => {
         let hit = 0;
@@ -471,11 +473,13 @@ const getRecommendedEdukasi = async (status, interpretasi = null, edukasiList = 
         });
 
         if (hit > 0) {
+          totalHit += hit;
+          if (signal.isTopic) topicHit += hit;
           score += signal.weight + (hit * 4);
         }
       });
 
-      return { item, score };
+      return { item, score: topicHit > 0 && totalHit > 0 ? score : 0 };
     })
     .filter((entry) => entry.score > 0)
     .sort((a, b) => {
@@ -486,11 +490,6 @@ const getRecommendedEdukasi = async (status, interpretasi = null, edukasiList = 
 
   if (ranked.length > 0) {
     return ranked.slice(0, 5);
-  }
-
-  for (const candidate of candidates) {
-    const matched = byStatus.get(candidate) || [];
-    if (matched.length > 0) return matched;
   }
 
   return [];
