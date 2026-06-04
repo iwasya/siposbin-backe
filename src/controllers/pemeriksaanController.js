@@ -32,9 +32,29 @@ const toOptionalPositiveMetricNumber = (value) => {
   return toRequiredPositiveMetricNumber(value);
 };
 
+const hasInputValue = (value) => value !== undefined && value !== null && value !== '';
+
+const parseOptionalPositiveMetricNumber = (value) => {
+  if (!hasInputValue(value)) {
+    return { value: null, provided: false, valid: true };
+  }
+
+  const parsed = toRequiredPositiveMetricNumber(value);
+  return {
+    value: parsed,
+    provided: true,
+    valid: parsed !== null
+  };
+};
+
 const normalizeJenisKelamin = (value) => {
   const normalized = String(value || "pria").toLowerCase().trim();
-  return normalized === "perempuan" || normalized === "wanita" ? "perempuan" : "pria";
+
+  if (['p', 'perempuan', 'wanita'].includes(normalized)) {
+    return "perempuan";
+  }
+
+  return "pria";
 };
 
 /* =========================
@@ -490,11 +510,13 @@ const buildInterpretasi = ({
   jenisKelamin = "pria"
 }) => {
   const normalizedJenisKelamin = normalizeJenisKelamin(jenisKelamin);
-  const tekananDarah = getTekananDarah(sistolik, diastolik);
-  const gula = getGulaDarah(gulaDarah);
-  const kol = getKolesterol(kolesterol, normalizedJenisKelamin, hdl);
-  const asam = getAsamUrat(asamUrat, normalizedJenisKelamin);
-  const bmiStatus = getBMIStatus(bmi);
+  const tekananDarah = sistolik !== null && diastolik !== null
+    ? getTekananDarah(sistolik, diastolik)
+    : null;
+  const gula = gulaDarah !== null ? getGulaDarah(gulaDarah) : null;
+  const kol = kolesterol !== null ? getKolesterol(kolesterol, normalizedJenisKelamin, hdl) : null;
+  const asam = asamUrat !== null ? getAsamUrat(asamUrat, normalizedJenisKelamin) : null;
+  const bmiStatus = bmi !== null ? getBMIStatus(bmi) : null;
 
   const status = calculateStatusFinal({
     tekananDarah,
@@ -534,35 +556,67 @@ exports.createPemeriksaan = async (req, res) => {
 
     const id_user = req.user.id;
 
-    const bb = toPositiveNumber(berat_badan);
-    const tb = toPositiveNumber(tinggi_badan);
-
-    const s = toRequiredPositiveMetricNumber(sistolik);
-    const d = toRequiredPositiveMetricNumber(diastolik);
-    const g = toRequiredPositiveMetricNumber(gula_darah);
-    const k = toRequiredPositiveMetricNumber(kolesterol);
-    const h = toOptionalPositiveMetricNumber(hdl ?? hdl_kolesterol);
-    const a = toRequiredPositiveMetricNumber(asam_urat);
-
-    if (!bb || !tb) {
-      return res.status(400).json({ message: "Berat & tinggi badan wajib valid" });
-    }
+    const parsedSistolik = parseOptionalPositiveMetricNumber(sistolik);
+    const parsedDiastolik = parseOptionalPositiveMetricNumber(diastolik);
+    const parsedGulaDarah = parseOptionalPositiveMetricNumber(gula_darah);
+    const parsedKolesterol = parseOptionalPositiveMetricNumber(kolesterol);
+    const parsedHdl = parseOptionalPositiveMetricNumber(hdl ?? hdl_kolesterol);
+    const parsedAsamUrat = parseOptionalPositiveMetricNumber(asam_urat);
+    const parsedBeratBadan = parseOptionalPositiveMetricNumber(berat_badan);
+    const parsedTinggiBadan = parseOptionalPositiveMetricNumber(tinggi_badan);
 
     if (
-      s === null ||
-      d === null ||
-      g === null ||
-      k === null ||
-      a === null ||
-      (h === null && (hdl !== undefined || hdl_kolesterol !== undefined))
+      !parsedSistolik.valid ||
+      !parsedDiastolik.valid ||
+      !parsedGulaDarah.valid ||
+      !parsedKolesterol.valid ||
+      !parsedHdl.valid ||
+      !parsedAsamUrat.valid ||
+      !parsedBeratBadan.valid ||
+      !parsedTinggiBadan.valid
     ) {
-      return res.status(400).json({ message: "Data pemeriksaan wajib diisi dan harus lebih dari 0" });
+      return res.status(400).json({ message: "Data harus angka valid dan lebih dari 0" });
     }
+
+    const hasTekananDarah = parsedSistolik.provided || parsedDiastolik.provided;
+    const hasBmiInput = parsedBeratBadan.provided || parsedTinggiBadan.provided;
+
+    if (hasTekananDarah && (!parsedSistolik.provided || !parsedDiastolik.provided)) {
+      return res.status(400).json({ message: "Sistolik dan diastolik wajib diisi bersamaan" });
+    }
+
+    if (hasBmiInput && (!parsedBeratBadan.provided || !parsedTinggiBadan.provided)) {
+      return res.status(400).json({ message: "Berat & tinggi badan wajib diisi bersamaan" });
+    }
+
+    const hasAnyMetric =
+      hasTekananDarah ||
+      parsedGulaDarah.provided ||
+      parsedKolesterol.provided ||
+      parsedAsamUrat.provided ||
+      hasBmiInput;
+
+    if (!hasAnyMetric) {
+      return res.status(400).json({ message: "Minimal satu data pemeriksaan wajib diisi" });
+    }
+
+    if (parsedHdl.provided && !parsedKolesterol.provided) {
+      return res.status(400).json({ message: "HDL hanya bisa diisi bersama kolesterol" });
+    }
+
+    const bb = parsedBeratBadan.value;
+    const tb = parsedTinggiBadan.value;
+    const s = parsedSistolik.value;
+    const d = parsedDiastolik.value;
+    const g = parsedGulaDarah.value;
+    const k = parsedKolesterol.value;
+    const h = parsedHdl.value;
+    const a = parsedAsamUrat.value;
 
     // ======================
     // HITUNG
     // ======================
-    const bmi = calculateBmi(bb, tb);
+    const bmi = bb !== null && tb !== null ? calculateBmi(bb, tb) : null;
 
     const {
       status,

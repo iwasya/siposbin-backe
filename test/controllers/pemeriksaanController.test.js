@@ -222,12 +222,12 @@ module.exports = [
       assert.equal(res.statusCode, 400);
       assert.equal(
         res.body.message,
-        'Berat & tinggi badan wajib valid'
+        'Data harus angka valid dan lebih dari 0'
       );
     }
   },
   {
-    name: 'createPemeriksaan menolak metrik pemeriksaan yang tidak lengkap',
+    name: 'createPemeriksaan menolak semua kolom pemeriksaan kosong',
     async run() {
       const { createPemeriksaan } = loadControllerWithSupabaseMock({
         from() {
@@ -237,10 +237,7 @@ module.exports = [
 
       const req = {
         user: { id: 7 },
-        body: {
-          berat_badan: 60,
-          tinggi_badan: 165
-        }
+        body: {}
       };
       const res = createResponse();
 
@@ -249,7 +246,7 @@ module.exports = [
       assert.equal(res.statusCode, 400);
       assert.equal(
         res.body.message,
-        'Data pemeriksaan wajib diisi dan harus lebih dari 0'
+        'Minimal satu data pemeriksaan wajib diisi'
       );
     }
   },
@@ -281,8 +278,34 @@ module.exports = [
       assert.equal(res.statusCode, 400);
       assert.equal(
         res.body.message,
-        'Data pemeriksaan wajib diisi dan harus lebih dari 0'
+        'Data harus angka valid dan lebih dari 0'
       );
+    }
+  },
+  {
+    name: 'createPemeriksaan mengizinkan sebagian kolom pemeriksaan terisi',
+    async run() {
+      const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
+      const { createPemeriksaan } = loadControllerWithSupabaseMock(supabase);
+
+      const req = {
+        user: { id: 7 },
+        body: {
+          gula_darah: 110
+        }
+      };
+      const res = createResponse();
+
+      await createPemeriksaan(req, res);
+
+      assert.equal(res.statusCode, 201);
+      assert.equal(res.body.status, 'Normal');
+      assert.equal(calls.pemeriksaanInsert[0].gula_darah, 110);
+      assert.equal(calls.pemeriksaanInsert[0].sistolik, null);
+      assert.equal(calls.pemeriksaanInsert[0].bmi, null);
+      assert.equal(calls.interpretasiInsert[0].gula_darah, 'Normal');
+      assert.equal(calls.interpretasiInsert[0].tekanan_darah, null);
+      assert.equal(calls.interpretasiInsert[0].bmi_status, null);
     }
   },
   {
@@ -319,7 +342,7 @@ module.exports = [
     }
   },
   {
-    name: 'createPemeriksaan menandai kolesterol perempuan waspada jika HDL rendah',
+    name: 'createPemeriksaan menandai kolesterol perempuan format P waspada jika HDL rendah',
     async run() {
       const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
       const { createPemeriksaan } = loadControllerWithSupabaseMock(supabase);
@@ -335,7 +358,7 @@ module.exports = [
           asam_urat: 5,
           berat_badan: 55,
           tinggi_badan: 160,
-          jenis_kelamin: 'perempuan'
+          jenis_kelamin: 'P'
         }
       };
       const res = createResponse();

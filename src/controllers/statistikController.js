@@ -9,6 +9,16 @@ const toMetricNumber = (value) => {
   return parsed;
 };
 
+const normalizeJenisKelamin = (value) => {
+  const normalized = String(value || "pria").toLowerCase().trim();
+
+  if (['p', 'perempuan', 'wanita'].includes(normalized)) {
+    return "perempuan";
+  }
+
+  return "pria";
+};
+
 const getTekananDarahStatusDanPesan = (sistolik, diastolik) => {
   const s = toMetricNumber(sistolik);
   const d = toMetricNumber(diastolik);
@@ -78,14 +88,14 @@ const getAsamUratStatusDanPesan = (asamUrat, jenisKelamin = "pria") => {
   const nilai = toMetricNumber(asamUrat);
   if (nilai === null) return null;
 
-  const gender = String(jenisKelamin || "pria").toLowerCase();
+  const gender = normalizeJenisKelamin(jenisKelamin);
   let status = "Normal";
   let keterangan = "Kadar asam urat Anda dalam batas normal. Pertahankan pola makan sehat dan cukup minum air putih.";
 
   if (nilai < 2) {
     status = "Rendah";
     keterangan = "Kadar asam urat rendah (<2 mg/dL) jarang terjadi namun perlu diperhatikan. Pastikan asupan nutrisi cukup dan lakukan pemeriksaan lanjutan bila perlu.";
-  } else if (gender === "wanita") {
+  } else if (gender === "perempuan") {
     if (nilai >= 8) {
       status = "Bahaya";
       keterangan = "Kadar asam urat yang tinggi dapat menyebabkan nyeri sendi. Hindari makanan tinggi purin seperti jeroan dan seafood, serta perbanyak konsumsi air putih.";

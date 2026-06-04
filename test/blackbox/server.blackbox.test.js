@@ -170,7 +170,7 @@ module.exports = [
       );
 
       assert.equal(response.status, 400);
-      assert.equal(body.message, 'Berat & tinggi badan wajib valid');
+      assert.equal(body.message, 'Data harus angka valid dan lebih dari 0');
     }
   },
   {
@@ -188,7 +188,7 @@ module.exports = [
       );
 
       assert.equal(response.status, 400);
-      assert.equal(body.message, 'Data harus angka valid');
+      assert.equal(body.message, 'Data harus angka valid dan lebih dari 0');
     }
   },
   {
