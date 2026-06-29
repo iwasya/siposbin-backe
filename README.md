@@ -294,8 +294,19 @@ Kategori interpretasi:
   - `Diabetes`: `>= 200`
 - Kolesterol total:
   - `Normal`: `< 200`
-  - `Waspada`: `>= 200` dan `< 240`
+  - `Waspada`: `200 - 239`
   - `Tinggi`: `>= 240`
+- LDL:
+  - `Optimal`: `< 100`
+  - `Mendekati Optimal`: `100 - 129`
+  - `Waspada`: `130 - 159`
+  - `Tinggi`: `160 - 189`
+  - `Sangat Tinggi`: `>= 190`
+- Trigliserida:
+  - `Normal`: `< 150`
+  - `Waspada`: `150 - 199`
+  - `Tinggi`: `200 - 499`
+  - `Sangat Tinggi`: `>= 500`
 - Asam urat:
   - Pria:
     - `Normal`: `< 7`
@@ -316,9 +327,9 @@ Kategori interpretasi:
 Kategori status akhir:
 
 - `Beresiko`
-  - jika ada hasil `Hipertensi 3`, `Bahaya`, atau `Diabetes`
+  - jika ada hasil `Hipertensi 1`, `Hipertensi 2`, `Hipertensi 3`, `Bahaya`, `Diabetes`, `Obesitas`, kolesterol total `Tinggi`, LDL `Tinggi`/`Sangat Tinggi`, atau trigliserida `Tinggi`/`Sangat Tinggi`
 - `Perlu Perhatian`
-  - jika ada hasil `Hipertensi 2`, `Tinggi`, `Prediabetes`, `Obesitas`, `Normal Tinggi`, `Hipertensi 1`, `Waspada`, atau `Kelebihan BB`
+  - jika ada hasil `Prediabetes`, `Normal Tinggi`, `Waspada`, `Kelebihan BB`, atau LDL `Mendekati Optimal`
 - `Normal`
   - jika semua hasil detail masih normal
 

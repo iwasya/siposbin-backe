@@ -452,6 +452,29 @@ module.exports = [
     }
   },
   {
+    name: 'createPemeriksaan menolak HDL tanpa kolesterol total',
+    async run() {
+      const { createPemeriksaan } = loadControllerWithSupabaseMock({
+        from() {
+          throw new Error('Supabase should not be called for invalid payload');
+        }
+      });
+
+      const req = {
+        user: { id: 7 },
+        body: {
+          hdl: 45
+        }
+      };
+      const res = createResponse();
+
+      await createPemeriksaan(req, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.equal(res.body.message, 'HDL hanya bisa diisi bersama kolesterol');
+    }
+  },
+  {
     name: 'createPemeriksaan mengizinkan sebagian kolom pemeriksaan terisi',
     async run() {
       const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
@@ -506,8 +529,11 @@ module.exports = [
     async run() {
       const cases = [
         [{ gula_darah: 210 }, 'Beresiko', { gula_darah: 'Diabetes' }],
-        [{ kolesterol: 250 }, 'Perlu Perhatian', { kolesterol: 'Tinggi' }],
+        [{ kolesterol: 250 }, 'Beresiko', { kolesterol: 'Tinggi' }],
+        [{ ldl: 190 }, 'Beresiko', { kolesterol: 'Sangat Tinggi' }],
+        [{ trigliserida: 500 }, 'Beresiko', { kolesterol: 'Sangat Tinggi' }],
         [{ asam_urat: 9 }, 'Beresiko', { asam_urat: 'Bahaya' }],
+        [{ sistolik: 145, diastolik: 92 }, 'Beresiko', { tekanan_darah: 'Hipertensi 1' }],
         [{ sistolik: 180, diastolik: 110 }, 'Beresiko', { tekanan_darah: 'Hipertensi 3' }],
         [{ berat_badan: 100, tinggi_badan: 160 }, 'Beresiko', { bmi_status: 'Obesitas' }]
       ];
@@ -526,6 +552,35 @@ module.exports = [
         for (const [key, value] of Object.entries(expectedInterpretasi)) {
           assert.equal(calls.interpretasiInsert[0][key], value);
         }
+      }
+    }
+  },
+  {
+    name: 'createPemeriksaan memakai batas LDL dan trigliserida untuk status kolesterol',
+    async run() {
+      const cases = [
+        [{ ldl: 99 }, 'Normal', 'Optimal'],
+        [{ ldl: 100 }, 'Perlu Perhatian', 'Mendekati Optimal'],
+        [{ ldl: 130 }, 'Perlu Perhatian', 'Waspada'],
+        [{ ldl: 160 }, 'Beresiko', 'Tinggi'],
+        [{ ldl: 190 }, 'Beresiko', 'Sangat Tinggi'],
+        [{ trigliserida: 149 }, 'Normal', 'Normal'],
+        [{ trigliserida: 150 }, 'Perlu Perhatian', 'Waspada'],
+        [{ trigliserida: 200 }, 'Beresiko', 'Tinggi'],
+        [{ trigliserida: 500 }, 'Beresiko', 'Sangat Tinggi']
+      ];
+
+      for (const [body, expectedStatus, expectedKolesterol] of cases) {
+        const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
+        const { createPemeriksaan } = loadControllerWithSupabaseMock(supabase);
+        const res = createResponse();
+
+        await createPemeriksaan({ user: { id: 7 }, body }, res);
+
+        assert.equal(res.statusCode, 201);
+        assert.equal(res.body.status, expectedStatus);
+        assert.equal(calls.interpretasiInsert[0].status_kesehatan, expectedStatus);
+        assert.equal(calls.interpretasiInsert[0].kolesterol, expectedKolesterol);
       }
     }
   },
