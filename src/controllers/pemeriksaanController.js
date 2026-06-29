@@ -133,14 +133,14 @@ const calculateStatusFinal = (data) => {
   if (
     hasil.includes("Hipertensi 3") ||
     hasil.includes("Bahaya") ||
-    hasil.includes("Diabetes")
+    hasil.includes("Diabetes") ||
+    hasil.includes("Obesitas")
   ) return "Beresiko";
 
   if (
     hasil.includes("Hipertensi 2") ||
     hasil.includes("Tinggi") ||
-    hasil.includes("Prediabetes") ||
-    hasil.includes("Obesitas")
+    hasil.includes("Prediabetes")
   ) return "Perlu Perhatian";
 
   if (

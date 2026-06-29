@@ -478,6 +478,30 @@ module.exports = [
     }
   },
   {
+    name: 'createPemeriksaan bisa Beresiko dari BMI saja',
+    async run() {
+      const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
+      const { createPemeriksaan } = loadControllerWithSupabaseMock(supabase);
+
+      const req = {
+        user: { id: 7 },
+        body: {
+          berat_badan: 100,
+          tinggi_badan: 160
+        }
+      };
+      const res = createResponse();
+
+      await createPemeriksaan(req, res);
+
+      assert.equal(res.statusCode, 201);
+      assert.equal(res.body.status, 'Beresiko');
+      assert.equal(calls.interpretasiInsert[0].status_kesehatan, 'Beresiko');
+      assert.equal(calls.interpretasiInsert[0].bmi_status, 'Obesitas');
+      assert.ok(Math.abs(calls.pemeriksaanInsert[0].bmi - 39.0625) < 0.0001);
+    }
+  },
+  {
     name: 'createPemeriksaan hanya merekomendasikan edukasi sesuai kolom yang diisi',
     async run() {
       const { supabase } = createCreatePemeriksaanSupabaseMock();
