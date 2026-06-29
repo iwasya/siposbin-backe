@@ -1,5 +1,6 @@
 const suites = [
   require('./controllers/pemeriksaanController.test'),
+  require('./controllers/dashboardController.test'),
   require('./controllers/statistikController.test'),
   require('./controllers/userController.test'),
   require('./smoke/app.smoke.test')

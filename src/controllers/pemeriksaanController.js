@@ -157,8 +157,8 @@ const normalizeFinalStatus = (status) => {
   const normalized = normalizeStatusLabel(status);
 
   if (["normal"].includes(normalized)) return "Normal";
-  if (["beresiko", "berisiko", "risiko tinggi"].includes(normalized)) return "Beresiko";
-  if (["perlu perhatian", "risiko", "waspada"].includes(normalized)) return "Perlu Perhatian";
+  if (["beresiko", "berisiko", "risiko tinggi", "risiko"].includes(normalized)) return "Beresiko";
+  if (["perlu perhatian", "waspada"].includes(normalized)) return "Perlu Perhatian";
 
   return status || "Normal";
 };
@@ -409,11 +409,11 @@ const buildStatusSummary = (item = {}) => {
 const getStatusCandidates = (status) => {
   const normalized = normalizeStatusLabel(status);
 
-  if (["beresiko", "berisiko", "risiko tinggi"].includes(normalized)) {
+  if (["beresiko", "berisiko", "risiko tinggi", "risiko"].includes(normalized)) {
     return ["beresiko", "berisiko", "risiko tinggi", "perlu perhatian", "risiko", "waspada", "normal"];
   }
-  if (["perlu perhatian", "risiko", "waspada"].includes(normalized)) {
-    return ["perlu perhatian", "risiko", "waspada", "normal"];
+  if (["perlu perhatian", "waspada"].includes(normalized)) {
+    return ["perlu perhatian", "waspada", "normal"];
   }
   if (normalized === "normal") {
     return ["normal"];
@@ -484,13 +484,13 @@ const buildRecommendationSignals = (status, interpretasi = null) => {
   if (signals.length === 0) return [];
 
   const normalizedStatus = normalizeStatusLabel(status);
-  if (["beresiko", "berisiko", "risiko tinggi"].includes(normalizedStatus)) {
+  if (["beresiko", "berisiko", "risiko tinggi", "risiko"].includes(normalizedStatus)) {
     signals.push({
       isTopic: false,
       weight: 35,
       keywords: ["segera", "lanjutan", "tenaga medis", "dokter", "rujukan"]
     });
-  } else if (["perlu perhatian", "risiko", "waspada"].includes(normalizedStatus)) {
+  } else if (["perlu perhatian", "waspada"].includes(normalizedStatus)) {
     signals.push({
       isTopic: false,
       weight: 20,

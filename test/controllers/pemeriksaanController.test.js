@@ -277,7 +277,7 @@ const createGetPemeriksaanByIdSupabaseMock = (pemeriksaanOverride = {}) => {
               data: [
                 {
                   id_edukasi: 4,
-                  target_status: 'Risiko',
+                  target_status: 'Perlu Perhatian',
                   kategori: 'Diabetes',
                   judul: 'Cara Mengontrol Gula Darah',
                   deskripsi: 'Pantau gula darah dan glukosa'
