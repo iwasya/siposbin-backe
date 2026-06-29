@@ -502,6 +502,34 @@ module.exports = [
     }
   },
   {
+    name: 'createPemeriksaan menghitung status dari satu indikator saja',
+    async run() {
+      const cases = [
+        [{ gula_darah: 210 }, 'Beresiko', { gula_darah: 'Diabetes' }],
+        [{ kolesterol: 250 }, 'Perlu Perhatian', { kolesterol: 'Tinggi' }],
+        [{ asam_urat: 9 }, 'Beresiko', { asam_urat: 'Bahaya' }],
+        [{ sistolik: 180, diastolik: 110 }, 'Beresiko', { tekanan_darah: 'Hipertensi 3' }],
+        [{ berat_badan: 100, tinggi_badan: 160 }, 'Beresiko', { bmi_status: 'Obesitas' }]
+      ];
+
+      for (const [body, expectedStatus, expectedInterpretasi] of cases) {
+        const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
+        const { createPemeriksaan } = loadControllerWithSupabaseMock(supabase);
+        const res = createResponse();
+
+        await createPemeriksaan({ user: { id: 7 }, body }, res);
+
+        assert.equal(res.statusCode, 201);
+        assert.equal(res.body.status, expectedStatus);
+        assert.equal(calls.interpretasiInsert[0].status_kesehatan, expectedStatus);
+
+        for (const [key, value] of Object.entries(expectedInterpretasi)) {
+          assert.equal(calls.interpretasiInsert[0][key], value);
+        }
+      }
+    }
+  },
+  {
     name: 'createPemeriksaan hanya merekomendasikan edukasi sesuai kolom yang diisi',
     async run() {
       const { supabase } = createCreatePemeriksaanSupabaseMock();
