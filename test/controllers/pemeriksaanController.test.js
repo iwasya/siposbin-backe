@@ -617,6 +617,34 @@ module.exports = [
     }
   },
   {
+    name: 'createPemeriksaan memakai batas asam urat wanita terbaru',
+    async run() {
+      const cases = [
+        [8, 'Waspada', 'Perlu Perhatian'],
+        [8.1, 'Tinggi', 'Perlu Perhatian'],
+        [9, 'Bahaya', 'Beresiko']
+      ];
+
+      for (const [asamUrat, asamStatus, finalStatus] of cases) {
+        const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
+        const { createPemeriksaan } = loadControllerWithSupabaseMock(supabase);
+        const res = createResponse();
+
+        await createPemeriksaan({
+          user: { id: 7 },
+          body: {
+            jenis_kelamin: 'perempuan',
+            asam_urat: asamUrat
+          }
+        }, res);
+
+        assert.equal(res.statusCode, 201);
+        assert.equal(calls.interpretasiInsert[0].asam_urat, asamStatus);
+        assert.equal(calls.interpretasiInsert[0].status_kesehatan, finalStatus);
+      }
+    }
+  },
+  {
     name: 'updatePemeriksaan menghitung ulang BMI dan mengubah interpretasi',
     async run() {
       const { supabase, calls } = createUpdatePemeriksaanSupabaseMock();

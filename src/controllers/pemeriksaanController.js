@@ -105,17 +105,12 @@ const getKolesterol = (val, jenisKelamin = "pria", hdl = null) => {
    ASAM URAT
 ========================= */
 const getAsamUrat = (val, gender = "pria") => {
-  if (gender === "pria") {
-    if (val >= 9) return "Bahaya";
-    if (val > 8) return "Tinggi";
-    if (val >= 7) return "Waspada";
-    return "Normal";
-  } else {
-    if (val >= 8) return "Bahaya";
-    if (val > 7) return "Tinggi";
-    if (val >= 6) return "Waspada";
-    return "Normal";
-  }
+  if (val >= 9) return "Bahaya";
+  if (val > 8) return "Tinggi";
+
+  const waspadaMin = gender === "pria" ? 7 : 6;
+  if (val >= waspadaMin) return "Waspada";
+  return "Normal";
 };
 
 /* =========================

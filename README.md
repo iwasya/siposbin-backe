@@ -304,9 +304,9 @@ Kategori interpretasi:
     - `Bahaya`: `>= 9`
   - Wanita:
     - `Normal`: `< 6`
-    - `Waspada`: `>= 6` dan `<= 7`
-    - `Tinggi`: `> 7` dan `< 8`
-    - `Bahaya`: `>= 8`
+    - `Waspada`: `>= 6` dan `<= 8`
+    - `Tinggi`: `> 8` dan `< 9`
+    - `Bahaya`: `>= 9`
 - BMI:
   - `Kurus`: `< 18.5`
   - `Normal`: `18.5 - 24.9`

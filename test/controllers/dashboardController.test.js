@@ -30,7 +30,7 @@ const loadControllerWithSupabaseMock = (supabaseMock) => {
   return require(controllerPath);
 };
 
-const createDashboardSupabaseMock = (statusKesehatan) => {
+const createDashboardSupabaseMock = (statusKesehatan, rowOverride = {}) => {
   const row = {
     id_pemeriksaan: 10,
     id_user: 7,
@@ -38,7 +38,8 @@ const createDashboardSupabaseMock = (statusKesehatan) => {
     created_at: '2026-06-04T01:31:00.000Z',
     interpretasi: {
       status_kesehatan: statusKesehatan
-    }
+    },
+    ...rowOverride
   };
 
   return {
@@ -95,6 +96,26 @@ module.exports = [
 
       assert.equal(res.statusCode, 200);
       assert.equal(res.body.last_check.interpretasi.status_kesehatan, 'Perlu Perhatian');
+    }
+  },
+  {
+    name: 'getDashboardSummary menghitung status beranda dari BMI terakhir',
+    async run() {
+      const { getDashboardSummary } = loadControllerWithSupabaseMock(
+        createDashboardSupabaseMock('Normal', {
+          bmi: 39.0625,
+          interpretasi: {
+            status_kesehatan: 'Normal',
+            bmi_status: 'Obesitas'
+          }
+        })
+      );
+      const res = createResponse();
+
+      await getDashboardSummary({ user: { id: 7 } }, res);
+
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.body.last_check.interpretasi.status_kesehatan, 'Beresiko');
     }
   }
 ];

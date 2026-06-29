@@ -1,15 +1,17 @@
 const supabase = require('../config/supabase');
 const { formatToJakartaDateTime } = require('../utils/dateTime');
-const { _helpers: { normalizeFinalStatus } } = require('./pemeriksaanController');
+const { _helpers: { calculateStatusFromInterpretasi } } = require('./pemeriksaanController');
 
-const normalizeInterpretasiStatus = (interpretasi) => {
-  if (Array.isArray(interpretasi)) return interpretasi.map(normalizeInterpretasiStatus);
+const normalizeInterpretasiStatus = (interpretasi, bmi = null) => {
+  if (Array.isArray(interpretasi)) {
+    return interpretasi.map((item) => normalizeInterpretasiStatus(item, bmi));
+  }
   if (!interpretasi || typeof interpretasi !== 'object') return interpretasi;
 
   return {
     ...interpretasi,
     status_kesehatan: interpretasi.status_kesehatan
-      ? normalizeFinalStatus(interpretasi.status_kesehatan)
+      ? calculateStatusFromInterpretasi(interpretasi, bmi)
       : interpretasi.status_kesehatan
   };
 };
@@ -24,7 +26,12 @@ exports.getDashboardSummary = async (req, res) => {
       .select(`
         *,
         interpretasi (
-          status_kesehatan
+          status_kesehatan,
+          tekanan_darah,
+          gula_darah,
+          kolesterol,
+          asam_urat,
+          bmi_status
         )
       `)
       .eq('id_user', userId)
@@ -55,7 +62,7 @@ exports.getDashboardSummary = async (req, res) => {
           ...lastCheck,
           created_at: formatToJakartaDateTime(lastCheck.created_at),
           tanggal_pemeriksaan: formatToJakartaDateTime(lastCheck.tanggal_pemeriksaan),
-          interpretasi: normalizeInterpretasiStatus(lastCheck.interpretasi)
+          interpretasi: normalizeInterpretasiStatus(lastCheck.interpretasi, lastCheck.bmi)
         }
       : null;
 
