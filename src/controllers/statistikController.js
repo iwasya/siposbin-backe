@@ -161,20 +161,18 @@ const getImtStatusDanPesan = (bmi) => {
   const nilai = toMetricNumber(bmi);
   if (nilai === null) return null;
 
-  let status = "Obesitas 2";
-  let keterangan = "Berat badan Anda berada pada kategori obesitas yang berisiko terhadap berbagai penyakit. Disarankan untuk melakukan perubahan gaya hidup dan konsultasi dengan tenaga kesehatan.";
+  let status = "Obesitas";
+  let keterangan = "Berat badan Anda berada pada kategori obesitas (≥30) yang berisiko terhadap berbagai penyakit. Disarankan untuk melakukan perubahan gaya hidup dan konsultasi dengan tenaga kesehatan.";
 
   if (nilai < 18.5) {
     status = "Kurus";
-    keterangan = "IMT di bawah 18,5 menunjukkan berat badan kurang. Disarankan meningkatkan asupan kalori dan nutrisi serta menjaga pola makan teratur.";
-  } else if (nilai <= 22.9) {
-    status = "Normal";
-    keterangan = "Indeks massa tubuh Anda berada dalam kategori ideal. Pertahankan pola makan sehat dan aktivitas fisik yang cukup.";
+    keterangan = "IMT di bawah 18.5 menunjukkan berat badan kurang. Disarankan meningkatkan asupan kalori dan nutrisi serta menjaga pola makan teratur.";
   } else if (nilai <= 24.9) {
-    status = "Overweight";
-    keterangan = "Berat badan Anda melebihi batas normal. Disarankan untuk mulai mengatur pola makan dan meningkatkan aktivitas fisik.";
+    status = "Normal";
+    keterangan = "Indeks massa tubuh Anda berada dalam kategori ideal (18.5-24.9). Pertahankan pola makan sehat dan aktivitas fisik yang cukup.";
   } else if (nilai <= 29.9) {
-    status = "Obesitas 1";
+    status = "Kelebihan BB";
+    keterangan = "Berat badan Anda melebihi batas normal (25-29.9). Disarankan untuk mulai mengatur pola makan dan meningkatkan aktivitas fisik.";
   }
 
   return {

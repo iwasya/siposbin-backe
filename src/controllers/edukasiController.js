@@ -19,14 +19,11 @@ const normalizeText = (value) => {
 const getStatusCandidates = (status) => {
   const normalized = normalizeStatusLabel(status);
 
-  if (normalized === "risiko tinggi") {
-    return ["risiko tinggi", "risiko", "waspada", "normal"];
+  if (normalized === "beresiko") {
+    return ["beresiko", "perlu perhatian", "normal"];
   }
-  if (normalized === "risiko") {
-    return ["risiko", "waspada", "normal"];
-  }
-  if (normalized === "waspada") {
-    return ["waspada", "normal"];
+  if (normalized === "perlu perhatian") {
+    return ["perlu perhatian", "normal"];
   }
   if (normalized === "normal") {
     return ["normal"];
@@ -80,20 +77,20 @@ const buildRecommendationSignals = (status, interpretasi = null) => {
     signals.push({
       isTopic: true,
       weight: 25,
-      keywords: ["bmi", "berat badan", "obesitas", "overweight", "aktivitas fisik"]
+      keywords: ["bmi", "berat badan", "obesitas", "kelebihan bb", "aktivitas fisik"]
     });
   }
 
   if (signals.length === 0) return [];
 
   const normalizedStatus = normalizeStatusLabel(status);
-  if (normalizedStatus === "risiko tinggi") {
+  if (normalizedStatus === "beresiko") {
     signals.push({
       isTopic: false,
       weight: 35,
       keywords: ["segera", "lanjutan", "tenaga medis", "dokter", "rujukan"]
     });
-  } else if (normalizedStatus === "risiko") {
+  } else if (normalizedStatus === "perlu perhatian") {
     signals.push({
       isTopic: false,
       weight: 20,

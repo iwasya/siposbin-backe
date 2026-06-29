@@ -67,10 +67,9 @@ const calculateBmi = (bb, tb) => {
 
 const getBMIStatus = (bmi) => {
   if (bmi < 18.5) return "Kurus";
-  if (bmi <= 22.9) return "Normal";
-  if (bmi <= 24.9) return "Overweight";
-  if (bmi <= 29.9) return "Obesitas 1";
-  return "Obesitas 2";
+  if (bmi <= 24.9) return "Normal";
+  if (bmi <= 29.9) return "Kelebihan BB";
+  return "Obesitas";
 };
 
 /* =========================
@@ -144,22 +143,21 @@ const calculateStatusFinal = (data) => {
     hasil.includes("Hipertensi 3") ||
     hasil.includes("Bahaya") ||
     hasil.includes("Diabetes")
-  ) return "Risiko Tinggi";
+  ) return "Beresiko";
 
   if (
     hasil.includes("Hipertensi 2") ||
     hasil.includes("Tinggi") ||
     hasil.includes("Prediabetes") ||
-    hasil.includes("Obesitas 2") ||
-    hasil.includes("Obesitas 1")
-  ) return "Risiko";
+    hasil.includes("Obesitas")
+  ) return "Perlu Perhatian";
 
   if (
     hasil.includes("Normal Tinggi") ||
     hasil.includes("Hipertensi 1") ||
     hasil.includes("Waspada") ||
-    hasil.includes("Overweight")
-  ) return "Waspada";
+    hasil.includes("Kelebihan BB")
+  ) return "Perlu Perhatian";
 
   return "Normal";
 };
@@ -171,11 +169,9 @@ const getPenjelasan = (status) => {
   switch (status) {
     case "Normal":
       return "Kondisi kesehatan Anda dalam batas normal. Pertahankan pola hidup sehat.";
-    case "Waspada":
-      return "Terdapat beberapa indikator yang perlu diperhatikan. Disarankan mulai menjaga pola makan dan gaya hidup.";
-    case "Risiko":
+    case "Perlu Perhatian":
       return "Beberapa indikator menunjukkan risiko kesehatan. Disarankan konsultasi dan perbaikan gaya hidup.";
-    case "Risiko Tinggi":
+    case "Beresiko":
       return "Kondisi kesehatan berisiko tinggi. Segera lakukan pemeriksaan lanjutan ke tenaga medis.";
     default:
       return "Status tidak diketahui";
@@ -291,7 +287,7 @@ const buildBmiDetail = (status, nilai) => {
     keterangan = "IMT di bawah 18,5 menunjukkan berat badan kurang. Disarankan meningkatkan asupan kalori dan nutrisi serta menjaga pola makan teratur.";
   } else if (normalized === "normal") {
     keterangan = "Indeks massa tubuh Anda berada dalam kategori ideal. Pertahankan pola makan sehat dan aktivitas fisik yang cukup.";
-  } else if (normalized === "overweight") {
+  } else if (normalized === "kelebihan bb") {
     keterangan = "Berat badan Anda melebihi batas normal. Disarankan untuk mulai mengatur pola makan dan meningkatkan aktivitas fisik.";
   }
 
@@ -357,14 +353,11 @@ const buildStatusSummary = (interpretasi = {}) => ({
 const getStatusCandidates = (status) => {
   const normalized = normalizeStatusLabel(status);
 
-  if (normalized === "risiko tinggi") {
-    return ["risiko tinggi", "risiko", "waspada", "normal"];
+  if (normalized === "beresiko") {
+    return ["beresiko", "perlu perhatian", "normal"];
   }
-  if (normalized === "risiko") {
-    return ["risiko", "waspada", "normal"];
-  }
-  if (normalized === "waspada") {
-    return ["waspada", "normal"];
+  if (normalized === "perlu perhatian") {
+    return ["perlu perhatian", "normal"];
   }
   if (normalized === "normal") {
     return ["normal"];
@@ -428,20 +421,20 @@ const buildRecommendationSignals = (status, interpretasi = null) => {
     signals.push({
       isTopic: true,
       weight: 25,
-      keywords: ["bmi", "berat badan", "obesitas", "overweight", "aktivitas fisik"]
+      keywords: ["bmi", "berat badan", "obesitas", "kelebihan bb", "aktivitas fisik"]
     });
   }
 
   if (signals.length === 0) return [];
 
   const normalizedStatus = normalizeStatusLabel(status);
-  if (normalizedStatus === "risiko tinggi") {
+  if (normalizedStatus === "beresiko") {
     signals.push({
       isTopic: false,
       weight: 35,
       keywords: ["segera", "lanjutan", "tenaga medis", "dokter", "rujukan"]
     });
-  } else if (normalizedStatus === "risiko") {
+  } else if (normalizedStatus === "perlu perhatian") {
     signals.push({
       isTopic: false,
       weight: 20,
@@ -601,14 +594,9 @@ exports.createPemeriksaan = async (req, res) => {
     }
 
     const hasTekananDarah = parsedSistolik.provided || parsedDiastolik.provided;
-    const hasBmiInput = parsedBeratBadan.provided || parsedTinggiBadan.provided;
 
     if (hasTekananDarah && (!parsedSistolik.provided || !parsedDiastolik.provided)) {
       return res.status(400).json({ message: "Sistolik dan diastolik wajib diisi bersamaan" });
-    }
-
-    if (hasBmiInput && (!parsedBeratBadan.provided || !parsedTinggiBadan.provided)) {
-      return res.status(400).json({ message: "Berat & tinggi badan wajib diisi bersamaan" });
     }
 
     const hasAnyMetric =
@@ -616,7 +604,8 @@ exports.createPemeriksaan = async (req, res) => {
       parsedGulaDarah.provided ||
       parsedKolesterol.provided ||
       parsedAsamUrat.provided ||
-      hasBmiInput;
+      parsedBeratBadan.provided ||
+      parsedTinggiBadan.provided;
 
     if (!hasAnyMetric) {
       return res.status(400).json({ message: "Minimal satu data pemeriksaan wajib diisi" });
