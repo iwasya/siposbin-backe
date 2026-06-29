@@ -88,18 +88,17 @@ const getGulaDarah = (gds) => {
 /* =========================
    KOLESTEROL
 ========================= */
-const getKolesterol = (val, jenisKelamin = "pria", hdl = null) => {
+const getKolesterol = (val) => {
   if (val >= 240) return "Tinggi";
   if (val >= 200) return "Waspada";
-
-  if (hdl !== null) {
-    const normalizedGender = normalizeJenisKelamin(jenisKelamin);
-    const minimumHdl = normalizedGender === "perempuan" ? 50 : 40;
-
-    if (hdl < minimumHdl) return "Waspada";
-  }
-
   return "Normal";
+};
+
+const getHdlStatus = (val, jenisKelamin = "pria") => {
+  const normalizedGender = normalizeJenisKelamin(jenisKelamin);
+  const minimumHdl = normalizedGender === "perempuan" ? 50 : 40;
+
+  return val < minimumHdl ? "Waspada" : "Normal";
 };
 
 const getLdl = (val) => {
@@ -143,7 +142,8 @@ const getKolesterolKeseluruhan = ({
   ldl = null,
   trigliserida = null
 }) => getHighestLipidStatus(
-  kolesterol !== null ? getKolesterol(kolesterol, jenisKelamin, hdl) : null,
+  kolesterol !== null ? getKolesterol(kolesterol) : null,
+  hdl !== null ? getHdlStatus(hdl, jenisKelamin) : null,
   ldl !== null ? getLdl(ldl) : null,
   trigliserida !== null ? getTrigliserida(trigliserida) : null
 );
@@ -213,6 +213,9 @@ const calculateStatusFromInterpretasi = (interpretasi = {}, bmi = null) => {
     interpretasi?.tekanan_darah,
     interpretasi?.gula_darah,
     interpretasi?.kolesterol,
+    interpretasi?.hdl_status,
+    interpretasi?.ldl_status,
+    interpretasi?.trigliserida_status,
     interpretasi?.asam_urat,
     interpretasi?.bmi_status
   ].some(hasInputValue);
@@ -224,7 +227,12 @@ const calculateStatusFromInterpretasi = (interpretasi = {}, bmi = null) => {
   return calculateStatusFinal({
     tekananDarah: interpretasi.tekanan_darah,
     gulaDarah: interpretasi.gula_darah,
-    kolesterol: interpretasi.kolesterol,
+    kolesterol: getHighestLipidStatus(
+      interpretasi.kolesterol,
+      interpretasi.hdl_status,
+      interpretasi.ldl_status,
+      interpretasi.trigliserida_status
+    ),
     asamUrat: interpretasi.asam_urat,
     bmi: getBmiStatusFromValue(bmi, interpretasi.bmi_status)
   });
@@ -302,7 +310,7 @@ const buildTekananDarahDetail = (status, sistolik, diastolik) => {
   };
 };
 
-const buildKolesterolDetail = (status, nilai) => {
+const buildLipidDetail = (kategori, status, nilai) => {
   const normalized = normalizeStatusLabel(status);
   let keterangan = "Kadar kolesterol yang tinggi dapat meningkatkan risiko penyakit jantung. Segera lakukan perubahan pola makan dan konsultasi dengan tenaga kesehatan.";
 
@@ -319,7 +327,7 @@ const buildKolesterolDetail = (status, nilai) => {
   }
 
   return {
-    kategori: "Kolesterol",
+    kategori,
     nilai,
     satuan: "mg/dL",
     status: status || null,
@@ -327,6 +335,8 @@ const buildKolesterolDetail = (status, nilai) => {
     anjuran: PEMANTAUAN_MESSAGE
   };
 };
+
+const buildKolesterolDetail = (status, nilai) => buildLipidDetail("Kolesterol Total", status, nilai);
 
 const buildAsamUratDetail = (status, nilai) => {
   const normalized = normalizeStatusLabel(status);
@@ -413,9 +423,38 @@ const buildPengecekan = (item) => {
     );
   }
 
-  if (hasInputValue(item?.kolesterol)) {
+  const hasLipidInput = [
+    item?.kolesterol,
+    item?.hdl,
+    item?.ldl,
+    item?.trigliserida
+  ].some(hasInputValue);
+
+  if (hasLipidInput) {
     status.kolesterol = interpretasi.kolesterol || null;
-    detail.kolesterol = buildKolesterolDetail(interpretasi.kolesterol, item?.kolesterol);
+  }
+
+  if (hasInputValue(item?.kolesterol)) {
+    detail.kolesterol = buildKolesterolDetail(getKolesterol(item?.kolesterol), item?.kolesterol);
+  }
+
+  if (hasInputValue(item?.hdl)) {
+    status.hdl_status = interpretasi.hdl_status || null;
+    detail.hdl = buildLipidDetail("HDL (Kolesterol Baik)", interpretasi.hdl_status, item?.hdl);
+  }
+
+  if (hasInputValue(item?.ldl)) {
+    status.ldl_status = interpretasi.ldl_status || null;
+    detail.ldl = buildLipidDetail("LDL (Kolesterol Jahat)", interpretasi.ldl_status, item?.ldl);
+  }
+
+  if (hasInputValue(item?.trigliserida)) {
+    status.trigliserida_status = interpretasi.trigliserida_status || null;
+    detail.trigliserida = buildLipidDetail(
+      "Trigliserida",
+      interpretasi.trigliserida_status,
+      item?.trigliserida
+    );
   }
 
   if (hasInputValue(item?.asam_urat)) {
@@ -450,6 +489,9 @@ const buildStatusSummary = (item = {}) => {
     tekananDarah: interpretasi?.tekanan_darah || "Tidak diketahui",
     gula: interpretasi?.gula_darah || "Tidak diketahui",
     kol: interpretasi?.kolesterol || "Tidak diketahui",
+    hdl: interpretasi?.hdl_status || "Tidak diketahui",
+    ldl: interpretasi?.ldl_status || "Tidak diketahui",
+    trigliserida: interpretasi?.trigliserida_status || "Tidak diketahui",
     asam: interpretasi?.asam_urat || "Tidak diketahui",
     bmiStatus: getBmiStatusFromValue(item?.bmi, interpretasi?.bmi_status) || "Tidak diketahui"
   };
@@ -630,6 +672,9 @@ const buildInterpretasi = ({
     ? getTekananDarah(sistolik, diastolik)
     : null;
   const gula = gulaDarah !== null ? getGulaDarah(gulaDarah) : null;
+  const hdlStatus = hdl !== null ? getHdlStatus(hdl, normalizedJenisKelamin) : null;
+  const ldlStatus = ldl !== null ? getLdl(ldl) : null;
+  const trigliseridaStatus = trigliserida !== null ? getTrigliserida(trigliserida) : null;
   const kol = getKolesterolKeseluruhan({
     kolesterol,
     jenisKelamin: normalizedJenisKelamin,
@@ -653,6 +698,9 @@ const buildInterpretasi = ({
     tekananDarah,
     gula,
     kol,
+    hdlStatus,
+    ldlStatus,
+    trigliseridaStatus,
     asam,
     bmiStatus
   };
@@ -722,15 +770,12 @@ exports.createPemeriksaan = async (req, res) => {
       hasTekananDarah ||
       parsedGulaDarah.provided ||
       parsedKolesterol.provided ||
+      parsedHdl.provided ||
       parsedLdl.provided ||
       parsedTrigliserida.provided ||
       parsedAsamUrat.provided ||
       parsedBeratBadan.provided ||
       parsedTinggiBadan.provided;
-
-    if (parsedHdl.provided && !parsedKolesterol.provided) {
-      return res.status(400).json({ message: "HDL hanya bisa diisi bersama kolesterol" });
-    }
 
     if (!hasAnyMetric) {
       return res.status(400).json({ message: "Minimal satu data pemeriksaan wajib diisi" });
@@ -757,6 +802,9 @@ exports.createPemeriksaan = async (req, res) => {
       tekananDarah,
       gula,
       kol,
+      hdlStatus,
+      ldlStatus,
+      trigliseridaStatus,
       asam,
       bmiStatus
     } = buildInterpretasi({
@@ -785,6 +833,9 @@ exports.createPemeriksaan = async (req, res) => {
         diastolik: d,
         gula_darah: g,
         kolesterol: k,
+        hdl: h,
+        ldl: l,
+        trigliserida: t,
         asam_urat: a,
         berat_badan: bb,
         tinggi_badan: tb,
@@ -805,6 +856,9 @@ exports.createPemeriksaan = async (req, res) => {
       tekanan_darah: tekananDarah,
       gula_darah: gula,
       kolesterol: kol,
+      hdl_status: hdlStatus,
+      ldl_status: ldlStatus,
+      trigliserida_status: trigliseridaStatus,
       asam_urat: asam,
       bmi_status: bmiStatus
     }]);
@@ -816,6 +870,9 @@ exports.createPemeriksaan = async (req, res) => {
       tekanan_darah: tekananDarah,
       gula_darah: gula,
       kolesterol: kol,
+      hdl_status: hdlStatus,
+      ldl_status: ldlStatus,
+      trigliserida_status: trigliseridaStatus,
       asam_urat: asam,
       bmi_status: bmiStatus
     });
@@ -831,6 +888,9 @@ exports.createPemeriksaan = async (req, res) => {
         tekananDarah,
         gula,
         kol,
+        hdlStatus,
+        ldlStatus,
+        trigliseridaStatus,
         asam,
         bmiStatus
       },
@@ -862,6 +922,9 @@ exports.getPemeriksaan = async (req, res) => {
           tekanan_darah,
           gula_darah,
           kolesterol,
+          hdl_status,
+          ldl_status,
+          trigliserida_status,
           asam_urat,
           bmi_status
         )
@@ -934,6 +997,9 @@ exports.getPemeriksaanById = async (req, res) => {
           tekanan_darah,
           gula_darah,
           kolesterol,
+          hdl_status,
+          ldl_status,
+          trigliserida_status,
           asam_urat,
           bmi_status
         )
@@ -1014,6 +1080,9 @@ exports.updatePemeriksaan = async (req, res) => {
         diastolik,
         gula_darah,
         kolesterol,
+        hdl,
+        ldl,
+        trigliserida,
         asam_urat,
         berat_badan,
         tinggi_badan,
@@ -1044,9 +1113,12 @@ exports.updatePemeriksaan = async (req, res) => {
       triglyceride,
       triglycerides
     );
-    const parsedHdl = parseOptionalPositiveMetricNumber(hdlInput);
-    const parsedLdl = parseOptionalPositiveMetricNumber(ldlInput);
-    const parsedTrigliserida = parseOptionalPositiveMetricNumber(trigliseridaInput);
+    const parsedHdl = parseUpdatePositiveMetricNumber(hdlInput, existingPemeriksaan.hdl);
+    const parsedLdl = parseUpdatePositiveMetricNumber(ldlInput, existingPemeriksaan.ldl);
+    const parsedTrigliserida = parseUpdatePositiveMetricNumber(
+      trigliseridaInput,
+      existingPemeriksaan.trigliserida
+    );
     const parsedAsamUrat = parseUpdatePositiveMetricNumber(asam_urat, existingPemeriksaan.asam_urat);
     const parsedBeratBadan = parseUpdatePositiveMetricNumber(berat_badan, existingPemeriksaan.berat_badan);
     const parsedTinggiBadan = parseUpdatePositiveMetricNumber(tinggi_badan, existingPemeriksaan.tinggi_badan);
@@ -1074,10 +1146,6 @@ exports.updatePemeriksaan = async (req, res) => {
       return res.status(400).json({ message: "Sistolik dan diastolik wajib diisi bersamaan" });
     }
 
-    if (parsedHdl.provided && parsedKolesterol.value === null) {
-      return res.status(400).json({ message: "HDL hanya bisa diisi bersama kolesterol" });
-    }
-
     const bmi = parsedBeratBadan.value !== null && parsedTinggiBadan.value !== null
       ? calculateBmi(parsedBeratBadan.value, parsedTinggiBadan.value)
       : null;
@@ -1086,6 +1154,9 @@ exports.updatePemeriksaan = async (req, res) => {
       tekananDarah,
       gula,
       kol,
+      hdlStatus,
+      ldlStatus,
+      trigliseridaStatus,
       asam,
       bmiStatus
     } = buildInterpretasi({
@@ -1108,6 +1179,9 @@ exports.updatePemeriksaan = async (req, res) => {
         diastolik: parsedDiastolik.value,
         gula_darah: parsedGulaDarah.value,
         kolesterol: parsedKolesterol.value,
+        hdl: parsedHdl.value,
+        ldl: parsedLdl.value,
+        trigliserida: parsedTrigliserida.value,
         asam_urat: parsedAsamUrat.value,
         berat_badan: parsedBeratBadan.value,
         tinggi_badan: parsedTinggiBadan.value,
@@ -1131,6 +1205,9 @@ exports.updatePemeriksaan = async (req, res) => {
         tekanan_darah: tekananDarah,
         gula_darah: gula,
         kolesterol: kol,
+        hdl_status: hdlStatus,
+        ldl_status: ldlStatus,
+        trigliserida_status: trigliseridaStatus,
         asam_urat: asam,
         bmi_status: bmiStatus
       })
@@ -1151,6 +1228,9 @@ exports.updatePemeriksaan = async (req, res) => {
           tekanan_darah: tekananDarah,
           gula_darah: gula,
           kolesterol: kol,
+          hdl_status: hdlStatus,
+          ldl_status: ldlStatus,
+          trigliserida_status: trigliseridaStatus,
           asam_urat: asam,
           bmi_status: bmiStatus
         }

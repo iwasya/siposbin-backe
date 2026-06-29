@@ -36,6 +36,9 @@ const buildRecommendationSignals = (status, interpretasi = null) => {
   const tekananDarah = normalizeStatusLabel(interpretasi?.tekanan_darah);
   const gula = normalizeStatusLabel(interpretasi?.gula_darah);
   const kolesterol = normalizeStatusLabel(interpretasi?.kolesterol);
+  const hdl = normalizeStatusLabel(interpretasi?.hdl_status);
+  const ldl = normalizeStatusLabel(interpretasi?.ldl_status);
+  const trigliserida = normalizeStatusLabel(interpretasi?.trigliserida_status);
   const asamUrat = normalizeStatusLabel(interpretasi?.asam_urat);
   const bmiStatus = normalizeStatusLabel(interpretasi?.bmi_status);
 
@@ -57,7 +60,7 @@ const buildRecommendationSignals = (status, interpretasi = null) => {
     });
   }
 
-  if (kolesterol) {
+  if (kolesterol || hdl || ldl || trigliserida) {
     signals.push({
       isTopic: true,
       weight: 30,
@@ -163,6 +166,9 @@ exports.getEdukasi = async (req, res) => {
           tekanan_darah,
           gula_darah,
           kolesterol,
+          hdl_status,
+          ldl_status,
+          trigliserida_status,
           asam_urat,
           bmi_status
         )

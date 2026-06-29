@@ -43,6 +43,9 @@ const createStatistikSupabaseMock = () => {
     diastolik: 80,
     gula_darah: null,
     kolesterol: 205,
+    hdl: 45,
+    ldl: 135,
+    trigliserida: 180,
     asam_urat: null,
     bmi: 27.7777777778,
     interpretasi: {
@@ -50,6 +53,9 @@ const createStatistikSupabaseMock = () => {
       tekanan_darah: 'Normal',
       gula_darah: null,
       kolesterol: 'Waspada',
+      hdl_status: 'Waspada',
+      ldl_status: 'Waspada',
+      trigliserida_status: 'Waspada',
       asam_urat: null,
       bmi_status: 'Obesitas 1'
     }
@@ -102,11 +108,9 @@ module.exports = [
       assert.equal(res.body.pengecekan.status_kesehatan, 'Perlu Perhatian');
       assert.equal(res.body.pengecekan.status.kolesterol, 'Waspada');
       assert.equal(res.body.pengecekan.status.bmi_status, 'Kelebihan BB');
-      assert.deepEqual(Object.keys(res.body.pengecekan.detail), [
-        'tekanan_darah',
-        'kolesterol',
-        'bmi_status'
-      ]);
+      assert.ok(res.body.pengecekan.detail.tekanan_darah);
+      assert.ok(res.body.pengecekan.detail.kolesterol);
+      assert.ok(res.body.pengecekan.detail.bmi_status);
     }
   }
 ];

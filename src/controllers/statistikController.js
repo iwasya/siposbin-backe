@@ -29,6 +29,9 @@ exports.getStatistik = async (req, res) => {
         diastolik,
         gula_darah,
         kolesterol,
+        hdl,
+        ldl,
+        trigliserida,
         asam_urat,
         bmi,
         interpretasi (
@@ -36,6 +39,9 @@ exports.getStatistik = async (req, res) => {
           tekanan_darah,
           gula_darah,
           kolesterol,
+          hdl_status,
+          ldl_status,
+          trigliserida_status,
           asam_urat,
           bmi_status
         )
@@ -59,6 +65,9 @@ exports.getStatistik = async (req, res) => {
     const diastolik = rows.map(item => item.diastolik);
     const gula_darah = rows.map(item => item.gula_darah);
     const kolesterol = rows.map(item => item.kolesterol);
+    const hdl = rows.map(item => item.hdl);
+    const ldl = rows.map(item => item.ldl);
+    const trigliserida = rows.map(item => item.trigliserida);
     const asam_urat = rows.map(item => item.asam_urat);
     const bmi = rows.map(item => item.bmi);
 
@@ -70,6 +79,9 @@ exports.getStatistik = async (req, res) => {
       diastolik,
       gula_darah,
       kolesterol,
+      hdl,
+      ldl,
+      trigliserida,
       asam_urat,
       bmi,
       pengecekan

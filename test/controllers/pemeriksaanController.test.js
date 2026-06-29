@@ -142,6 +142,9 @@ const createUpdatePemeriksaanSupabaseMock = (existingOverride = {}) => {
     diastolik: 79,
     gula_darah: 110,
     kolesterol: 180,
+    hdl: null,
+    ldl: null,
+    trigliserida: null,
     asam_urat: 6,
     berat_badan: 70,
     tinggi_badan: 170,
@@ -244,6 +247,9 @@ const createGetPemeriksaanByIdSupabaseMock = (pemeriksaanOverride = {}) => {
     diastolik: 85,
     gula_darah: 150,
     kolesterol: 205,
+    hdl: null,
+    ldl: null,
+    trigliserida: null,
     asam_urat: 6,
     berat_badan: 90,
     tinggi_badan: 180,
@@ -344,13 +350,11 @@ module.exports = [
         ['id_user', 7]
       ]);
       assert.equal(res.body.penjelasan, 'Beberapa indikator menunjukkan risiko kesehatan. Disarankan konsultasi dan perbaikan gaya hidup.');
-      assert.deepEqual(res.body.detail, {
-        tekananDarah: 'Normal Tinggi',
-        gula: 'Prediabetes',
-        kol: 'Waspada',
-        asam: 'Normal',
-        bmiStatus: 'Kelebihan BB'
-      });
+      assert.equal(res.body.detail.tekananDarah, 'Normal Tinggi');
+      assert.equal(res.body.detail.gula, 'Prediabetes');
+      assert.equal(res.body.detail.kol, 'Waspada');
+      assert.equal(res.body.detail.asam, 'Normal');
+      assert.equal(res.body.detail.bmiStatus, 'Kelebihan BB');
       assert.equal(res.body.status_kesehatan, 'Perlu Perhatian');
       assert.equal(res.body.pengecekan.status_kesehatan, 'Perlu Perhatian');
       assert.equal(res.body.pengecekan.detail.gula_darah.status, 'Prediabetes');
@@ -374,6 +378,9 @@ module.exports = [
           tekanan_darah: 'Normal',
           gula_darah: null,
           kolesterol: null,
+          hdl_status: null,
+          ldl_status: null,
+          trigliserida_status: null,
           asam_urat: null,
           bmi_status: null
         }
@@ -452,13 +459,10 @@ module.exports = [
     }
   },
   {
-    name: 'createPemeriksaan menolak HDL tanpa kolesterol total',
+    name: 'createPemeriksaan mengizinkan HDL tanpa kolesterol total',
     async run() {
-      const { createPemeriksaan } = loadControllerWithSupabaseMock({
-        from() {
-          throw new Error('Supabase should not be called for invalid payload');
-        }
-      });
+      const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
+      const { createPemeriksaan } = loadControllerWithSupabaseMock(supabase);
 
       const req = {
         user: { id: 7 },
@@ -470,8 +474,11 @@ module.exports = [
 
       await createPemeriksaan(req, res);
 
-      assert.equal(res.statusCode, 400);
-      assert.equal(res.body.message, 'HDL hanya bisa diisi bersama kolesterol');
+      assert.equal(res.statusCode, 201);
+      assert.equal(calls.pemeriksaanInsert[0].hdl, 45);
+      assert.equal(calls.pemeriksaanInsert[0].kolesterol, null);
+      assert.equal(calls.interpretasiInsert[0].hdl_status, 'Normal');
+      assert.equal(calls.interpretasiInsert[0].kolesterol, 'Normal');
     }
   },
   {
@@ -530,8 +537,11 @@ module.exports = [
       const cases = [
         [{ gula_darah: 210 }, 'Beresiko', { gula_darah: 'Diabetes' }],
         [{ kolesterol: 250 }, 'Beresiko', { kolesterol: 'Tinggi' }],
-        [{ ldl: 190 }, 'Beresiko', { kolesterol: 'Sangat Tinggi' }],
-        [{ trigliserida: 500 }, 'Beresiko', { kolesterol: 'Sangat Tinggi' }],
+        [{ ldl: 190 }, 'Beresiko', { kolesterol: 'Sangat Tinggi', ldl_status: 'Sangat Tinggi' }],
+        [{ trigliserida: 500 }, 'Beresiko', {
+          kolesterol: 'Sangat Tinggi',
+          trigliserida_status: 'Sangat Tinggi'
+        }],
         [{ asam_urat: 9 }, 'Beresiko', { asam_urat: 'Bahaya' }],
         [{ sistolik: 145, diastolik: 92 }, 'Beresiko', { tekanan_darah: 'Hipertensi 1' }],
         [{ sistolik: 180, diastolik: 110 }, 'Beresiko', { tekanan_darah: 'Hipertensi 3' }],
@@ -581,6 +591,16 @@ module.exports = [
         assert.equal(res.body.status, expectedStatus);
         assert.equal(calls.interpretasiInsert[0].status_kesehatan, expectedStatus);
         assert.equal(calls.interpretasiInsert[0].kolesterol, expectedKolesterol);
+
+        if (Object.hasOwn(body, 'ldl')) {
+          assert.equal(calls.pemeriksaanInsert[0].ldl, body.ldl);
+          assert.equal(calls.interpretasiInsert[0].ldl_status, expectedKolesterol);
+        }
+
+        if (Object.hasOwn(body, 'trigliserida')) {
+          assert.equal(calls.pemeriksaanInsert[0].trigliserida, body.trigliserida);
+          assert.equal(calls.interpretasiInsert[0].trigliserida_status, expectedKolesterol);
+        }
       }
     }
   },
@@ -667,8 +687,10 @@ module.exports = [
 
       assert.equal(res.statusCode, 201);
       assert.equal(calls.interpretasiInsert[0].kolesterol, 'Waspada');
+      assert.equal(calls.interpretasiInsert[0].hdl_status, 'Waspada');
       assert.equal(calls.interpretasiInsert[0].status_kesehatan, 'Perlu Perhatian');
       assert.equal(res.body.detail.kol, 'Waspada');
+      assert.equal(res.body.detail.hdlStatus, 'Waspada');
     }
   },
   {
@@ -729,6 +751,9 @@ module.exports = [
         tekanan_darah: 'Normal Tinggi',
         gula_darah: 'Prediabetes',
         kolesterol: 'Waspada',
+        hdl_status: null,
+        ldl_status: null,
+        trigliserida_status: null,
         asam_urat: 'Normal',
         bmi_status: 'Kelebihan BB'
       });
@@ -770,6 +795,9 @@ module.exports = [
         tekanan_darah: null,
         gula_darah: 'Normal',
         kolesterol: null,
+        hdl_status: null,
+        ldl_status: null,
+        trigliserida_status: null,
         asam_urat: null,
         bmi_status: null
       });

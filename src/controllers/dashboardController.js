@@ -30,6 +30,9 @@ exports.getDashboardSummary = async (req, res) => {
           tekanan_darah,
           gula_darah,
           kolesterol,
+          hdl_status,
+          ldl_status,
+          trigliserida_status,
           asam_urat,
           bmi_status
         )
