@@ -4,21 +4,6 @@ const { formatToJakartaDateTime } = require('../utils/dateTime');
 /* =========================
    VALIDATION
 ========================= */
-const toPositiveNumber = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
-  return parsed;
-};
-
-const toMetricNumber = (value, defaultValue = 0) => {
-  if (value === undefined || value === null || value === '') {
-    return defaultValue;
-  }
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) return null;
-  return parsed;
-};
-
 const toRequiredPositiveMetricNumber = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
@@ -45,6 +30,12 @@ const parseOptionalPositiveMetricNumber = (value) => {
     provided: true,
     valid: parsed !== null
   };
+};
+
+const parseUpdatePositiveMetricNumber = (value, fallbackValue) => {
+  return parseOptionalPositiveMetricNumber(
+    value === undefined ? fallbackValue : value
+  );
 };
 
 const normalizeJenisKelamin = (value) => {
@@ -162,11 +153,55 @@ const calculateStatusFinal = (data) => {
   return "Normal";
 };
 
+const normalizeFinalStatus = (status) => {
+  const normalized = normalizeStatusLabel(status);
+
+  if (["normal"].includes(normalized)) return "Normal";
+  if (["beresiko", "berisiko", "risiko tinggi"].includes(normalized)) return "Beresiko";
+  if (["perlu perhatian", "risiko", "waspada"].includes(normalized)) return "Perlu Perhatian";
+
+  return status || "Normal";
+};
+
+const calculateStatusFromInterpretasi = (interpretasi = {}, bmi = null) => {
+  const hasDetail = [
+    interpretasi?.tekanan_darah,
+    interpretasi?.gula_darah,
+    interpretasi?.kolesterol,
+    interpretasi?.asam_urat,
+    interpretasi?.bmi_status
+  ].some(hasInputValue);
+
+  if (!hasDetail) {
+    return normalizeFinalStatus(interpretasi?.status_kesehatan);
+  }
+
+  return calculateStatusFinal({
+    tekananDarah: interpretasi.tekanan_darah,
+    gulaDarah: interpretasi.gula_darah,
+    kolesterol: interpretasi.kolesterol,
+    asamUrat: interpretasi.asam_urat,
+    bmi: getBmiStatusFromValue(bmi, interpretasi.bmi_status)
+  });
+};
+
+const getBmiStatusFromValue = (bmi, fallbackStatus = null) => {
+  const parsed = Number(bmi);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return getBMIStatus(parsed);
+  }
+
+  const normalized = normalizeStatusLabel(fallbackStatus);
+  if (["obesitas 1", "overweight"].includes(normalized)) return "Kelebihan BB";
+  if (normalized === "obesitas 2") return "Obesitas";
+  return fallbackStatus || null;
+};
+
 /* =========================
    PENJELASAN
 ========================= */
 const getPenjelasan = (status) => {
-  switch (status) {
+  switch (normalizeFinalStatus(status)) {
     case "Normal":
       return "Kondisi kesehatan Anda dalam batas normal. Pertahankan pola hidup sehat.";
     case "Perlu Perhatian":
@@ -179,11 +214,16 @@ const getPenjelasan = (status) => {
 };
 
 const normalizeStatusLabel = (value) => {
-  return String(value || "")
+  const normalized = String(value || "")
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, " ")
-    .replace("resiko", "risiko");
+    .replace(/\s+/g, " ");
+
+  if (["beresiko", "berisiko"].includes(normalized)) {
+    return "beresiko";
+  }
+
+  return normalized.replace("resiko", "risiko");
 };
 
 const normalizeText = (value) => {
@@ -301,10 +341,19 @@ const buildBmiDetail = (status, nilai) => {
   };
 };
 
+const normalizeInterpretasiRelation = (interpretasi) => {
+  if (Array.isArray(interpretasi)) {
+    return interpretasi[0] || {};
+  }
+
+  return interpretasi || {};
+};
+
 const buildPengecekan = (item) => {
-  const interpretasi = item?.interpretasi || {};
+  const interpretasi = normalizeInterpretasiRelation(item?.interpretasi);
   const status = {};
   const detail = {};
+  const finalStatus = calculateStatusFromInterpretasi(interpretasi, item?.bmi);
 
   if (hasInputValue(item?.sistolik) && hasInputValue(item?.diastolik)) {
     status.tekanan_darah = interpretasi.tekanan_darah || null;
@@ -331,33 +380,40 @@ const buildPengecekan = (item) => {
   }
 
   if (hasInputValue(item?.bmi)) {
-    status.bmi_status = interpretasi.bmi_status || null;
-    detail.bmi_status = buildBmiDetail(interpretasi.bmi_status, item?.bmi);
+    const bmiStatus = getBmiStatusFromValue(item?.bmi, interpretasi.bmi_status);
+    status.bmi_status = bmiStatus;
+    detail.bmi_status = buildBmiDetail(bmiStatus, item?.bmi);
   }
 
   return {
-    tanggal_pemeriksaan: formatToJakartaDateTime(item?.tanggal_pemeriksaan),
+    tanggal_pemeriksaan: formatToJakartaDateTime(item?.tanggal_pemeriksaan || item?.created_at),
+    status_kesehatan: finalStatus,
+    penjelasan: getPenjelasan(finalStatus),
     status,
     detail
   };
 };
 
-const buildStatusSummary = (interpretasi = {}) => ({
-  tekananDarah: interpretasi?.tekanan_darah || "Tidak diketahui",
-  gula: interpretasi?.gula_darah || "Tidak diketahui",
-  kol: interpretasi?.kolesterol || "Tidak diketahui",
-  asam: interpretasi?.asam_urat || "Tidak diketahui",
-  bmiStatus: interpretasi?.bmi_status || "Tidak diketahui"
-});
+const buildStatusSummary = (item = {}) => {
+  const interpretasi = normalizeInterpretasiRelation(item?.interpretasi || item);
+
+  return {
+    tekananDarah: interpretasi?.tekanan_darah || "Tidak diketahui",
+    gula: interpretasi?.gula_darah || "Tidak diketahui",
+    kol: interpretasi?.kolesterol || "Tidak diketahui",
+    asam: interpretasi?.asam_urat || "Tidak diketahui",
+    bmiStatus: getBmiStatusFromValue(item?.bmi, interpretasi?.bmi_status) || "Tidak diketahui"
+  };
+};
 
 const getStatusCandidates = (status) => {
   const normalized = normalizeStatusLabel(status);
 
-  if (normalized === "beresiko") {
-    return ["beresiko", "perlu perhatian", "normal"];
+  if (["beresiko", "berisiko", "risiko tinggi"].includes(normalized)) {
+    return ["beresiko", "berisiko", "risiko tinggi", "perlu perhatian", "risiko", "waspada", "normal"];
   }
-  if (normalized === "perlu perhatian") {
-    return ["perlu perhatian", "normal"];
+  if (["perlu perhatian", "risiko", "waspada"].includes(normalized)) {
+    return ["perlu perhatian", "risiko", "waspada", "normal"];
   }
   if (normalized === "normal") {
     return ["normal"];
@@ -428,23 +484,17 @@ const buildRecommendationSignals = (status, interpretasi = null) => {
   if (signals.length === 0) return [];
 
   const normalizedStatus = normalizeStatusLabel(status);
-  if (normalizedStatus === "beresiko") {
+  if (["beresiko", "berisiko", "risiko tinggi"].includes(normalizedStatus)) {
     signals.push({
       isTopic: false,
       weight: 35,
       keywords: ["segera", "lanjutan", "tenaga medis", "dokter", "rujukan"]
     });
-  } else if (normalizedStatus === "perlu perhatian") {
+  } else if (["perlu perhatian", "risiko", "waspada"].includes(normalizedStatus)) {
     signals.push({
       isTopic: false,
       weight: 20,
       keywords: ["konsultasi", "perbaikan", "kendalikan", "monitoring"]
-    });
-  } else if (normalizedStatus === "waspada") {
-    signals.push({
-      isTopic: false,
-      weight: 15,
-      keywords: ["waspada", "pantau", "jaga", "kontrol rutin"]
     });
   }
 
@@ -759,21 +809,26 @@ exports.getPemeriksaan = async (req, res) => {
     // 2️⃣ Loop setiap pemeriksaan dan tambahkan edukasi
     const result = await Promise.all(
       pemeriksaan.map(async (item) => {
-        const status = item.interpretasi?.status_kesehatan;
+        const normalizedItem = {
+          ...item,
+          interpretasi: normalizeInterpretasiRelation(item.interpretasi)
+        };
+        const status = calculateStatusFromInterpretasi(normalizedItem.interpretasi, normalizedItem.bmi);
 
         // Ambil recommended
         const recommended = await getRecommendedEdukasi(
           status,
-          item.interpretasi,
+          normalizedItem.interpretasi,
           edukasiList || []
         );
 
         return {
-          ...item,
-          created_at: formatToJakartaDateTime(item.created_at),
-          pengecekan: buildPengecekan(item),
+          ...normalizedItem,
+          created_at: formatToJakartaDateTime(normalizedItem.created_at),
+          status_kesehatan: status,
+          pengecekan: buildPengecekan(normalizedItem),
           penjelasan: getPenjelasan(status),
-          detail: buildStatusSummary(item.interpretasi),
+          detail: buildStatusSummary(normalizedItem),
           recommended: recommended || []
         };
       })
@@ -816,21 +871,29 @@ exports.getPemeriksaanById = async (req, res) => {
       return res.status(404).json({ message: "Data pemeriksaan tidak ditemukan" });
     }
 
-    const status = pemeriksaan.interpretasi?.status_kesehatan;
+    const normalizedPemeriksaan = {
+      ...pemeriksaan,
+      interpretasi: normalizeInterpretasiRelation(pemeriksaan.interpretasi)
+    };
+    const status = calculateStatusFromInterpretasi(
+      normalizedPemeriksaan.interpretasi,
+      normalizedPemeriksaan.bmi
+    );
 
     // 2️⃣ Ambil edukasi sesuai status
     let recommended = [];
 
     if (status) {
-      recommended = await getRecommendedEdukasi(status, pemeriksaan.interpretasi);
+      recommended = await getRecommendedEdukasi(status, normalizedPemeriksaan.interpretasi);
     }
 
     res.json({
-      ...pemeriksaan,
-      created_at: formatToJakartaDateTime(pemeriksaan.created_at),
-      pengecekan: buildPengecekan(pemeriksaan),
+      ...normalizedPemeriksaan,
+      created_at: formatToJakartaDateTime(normalizedPemeriksaan.created_at),
+      status_kesehatan: status,
+      pengecekan: buildPengecekan(normalizedPemeriksaan),
       penjelasan: getPenjelasan(status),
-      detail: buildStatusSummary(pemeriksaan.interpretasi),
+      detail: buildStatusSummary(normalizedPemeriksaan),
       recommended
     });
 
@@ -884,35 +947,43 @@ exports.updatePemeriksaan = async (req, res) => {
       });
     }
 
-    const parsedSistolik = toMetricNumber(sistolik, existingPemeriksaan.sistolik ?? 0);
-    const parsedDiastolik = toMetricNumber(diastolik, existingPemeriksaan.diastolik ?? 0);
-    const parsedGulaDarah = toMetricNumber(gula_darah, existingPemeriksaan.gula_darah ?? 0);
-    const parsedKolesterol = toMetricNumber(kolesterol, existingPemeriksaan.kolesterol ?? 0);
+    const parsedSistolik = parseUpdatePositiveMetricNumber(sistolik, existingPemeriksaan.sistolik);
+    const parsedDiastolik = parseUpdatePositiveMetricNumber(diastolik, existingPemeriksaan.diastolik);
+    const parsedGulaDarah = parseUpdatePositiveMetricNumber(gula_darah, existingPemeriksaan.gula_darah);
+    const parsedKolesterol = parseUpdatePositiveMetricNumber(kolesterol, existingPemeriksaan.kolesterol);
     const parsedHdl = toOptionalPositiveMetricNumber(hdl ?? hdl_kolesterol);
-    const parsedAsamUrat = toMetricNumber(asam_urat, existingPemeriksaan.asam_urat ?? 0);
-    const parsedBeratBadan = berat_badan === undefined
-      ? toPositiveNumber(existingPemeriksaan.berat_badan)
-      : toPositiveNumber(berat_badan);
-    const parsedTinggiBadan = tinggi_badan === undefined
-      ? toPositiveNumber(existingPemeriksaan.tinggi_badan)
-      : toPositiveNumber(tinggi_badan);
+    const parsedAsamUrat = parseUpdatePositiveMetricNumber(asam_urat, existingPemeriksaan.asam_urat);
+    const parsedBeratBadan = parseUpdatePositiveMetricNumber(berat_badan, existingPemeriksaan.berat_badan);
+    const parsedTinggiBadan = parseUpdatePositiveMetricNumber(tinggi_badan, existingPemeriksaan.tinggi_badan);
 
     if (
-      parsedSistolik === null ||
-      parsedDiastolik === null ||
-      parsedGulaDarah === null ||
-      parsedKolesterol === null ||
+      !parsedSistolik.valid ||
+      !parsedDiastolik.valid ||
+      !parsedGulaDarah.valid ||
+      !parsedKolesterol.valid ||
       (parsedHdl === null && (hdl !== undefined || hdl_kolesterol !== undefined)) ||
-      parsedAsamUrat === null ||
-      !parsedBeratBadan ||
-      !parsedTinggiBadan
+      !parsedAsamUrat.valid ||
+      !parsedBeratBadan.valid ||
+      !parsedTinggiBadan.valid
     ) {
       return res.status(400).json({
-        message: "Data pemeriksaan harus berupa angka valid, dan berat/tinggi badan harus lebih dari 0"
+        message: "Data pemeriksaan harus berupa angka valid dan lebih dari 0"
       });
     }
 
-    const bmi = calculateBmi(parsedBeratBadan, parsedTinggiBadan);
+    const hasTekananDarah = parsedSistolik.value !== null || parsedDiastolik.value !== null;
+
+    if (hasTekananDarah && (parsedSistolik.value === null || parsedDiastolik.value === null)) {
+      return res.status(400).json({ message: "Sistolik dan diastolik wajib diisi bersamaan" });
+    }
+
+    if ((hdl !== undefined || hdl_kolesterol !== undefined) && parsedKolesterol.value === null) {
+      return res.status(400).json({ message: "HDL hanya bisa diisi bersama kolesterol" });
+    }
+
+    const bmi = parsedBeratBadan.value !== null && parsedTinggiBadan.value !== null
+      ? calculateBmi(parsedBeratBadan.value, parsedTinggiBadan.value)
+      : null;
     const {
       status,
       tekananDarah,
@@ -921,11 +992,11 @@ exports.updatePemeriksaan = async (req, res) => {
       asam,
       bmiStatus
     } = buildInterpretasi({
-      sistolik: parsedSistolik,
-      diastolik: parsedDiastolik,
-      gulaDarah: parsedGulaDarah,
-      kolesterol: parsedKolesterol,
-      asamUrat: parsedAsamUrat,
+      sistolik: parsedSistolik.value,
+      diastolik: parsedDiastolik.value,
+      gulaDarah: parsedGulaDarah.value,
+      kolesterol: parsedKolesterol.value,
+      asamUrat: parsedAsamUrat.value,
       bmi,
       hdl: parsedHdl,
       jenisKelamin: jenis_kelamin
@@ -934,13 +1005,13 @@ exports.updatePemeriksaan = async (req, res) => {
     const { data, error } = await supabase
       .from('pemeriksaan')
       .update({
-        sistolik: parsedSistolik,
-        diastolik: parsedDiastolik,
-        gula_darah: parsedGulaDarah,
-        kolesterol: parsedKolesterol,
-        asam_urat: parsedAsamUrat,
-        berat_badan: parsedBeratBadan,
-        tinggi_badan: parsedTinggiBadan,
+        sistolik: parsedSistolik.value,
+        diastolik: parsedDiastolik.value,
+        gula_darah: parsedGulaDarah.value,
+        kolesterol: parsedKolesterol.value,
+        asam_urat: parsedAsamUrat.value,
+        berat_badan: parsedBeratBadan.value,
+        tinggi_badan: parsedTinggiBadan.value,
         bmi
       })
       .eq('id_pemeriksaan', id)
@@ -1024,4 +1095,13 @@ exports.deletePemeriksaan = async (req, res) => {
       error: err.message
     });
   }
+};
+
+exports._helpers = {
+  buildPengecekan,
+  buildStatusSummary,
+  calculateStatusFromInterpretasi,
+  getPenjelasan,
+  normalizeFinalStatus,
+  normalizeInterpretasiRelation
 };

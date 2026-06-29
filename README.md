@@ -28,7 +28,7 @@ API utama berjalan dari [server.js](/d:/kerjaan/siposbin-backend/server.js) dan 
 - Penyimpanan log reset password untuk admin
 - CRUD pemeriksaan kesehatan
 - Perhitungan BMI otomatis
-- Penentuan status kesehatan: `Normal`, `Waspada`, `Risiko`, `Risiko Tinggi`
+- Penentuan status kesehatan: `Normal`, `Perlu Perhatian`, `Beresiko`
 - Rekomendasi edukasi berdasarkan status kesehatan
 - Riwayat dan detail pemeriksaan user
 - Dashboard ringkasan user
@@ -271,9 +271,10 @@ Catatan:
 
 Pada modul pemeriksaan:
 
-- berat dan tinggi badan divalidasi agar lebih dari `0`
+- pemeriksaan bisa disimpan dengan minimal satu metrik
+- berat dan tinggi badan bersifat opsional, tetapi jika diisi harus lebih dari `0`
 - metrik pemeriksaan numerik divalidasi agar tidak bernilai negatif
-- BMI dihitung otomatis dari `berat_badan / (tinggi_badan_meter^2)`
+- BMI dihitung otomatis jika `berat_badan` dan `tinggi_badan` sama-sama tersedia
 - interpretasi detail dihitung untuk tekanan darah, gula darah, kolesterol, asam urat, dan BMI
 - status kesehatan akhir dihitung dari hasil interpretasi detail
 - `create` dan `update` pemeriksaan sama-sama menghitung ulang `BMI` dan memperbarui `interpretasi`
@@ -308,19 +309,16 @@ Kategori interpretasi:
     - `Bahaya`: `>= 8`
 - BMI:
   - `Kurus`: `< 18.5`
-  - `Normal`: `18.5 - 22.9`
-  - `Overweight`: `23 - 24.9`
-  - `Obesitas 1`: `25 - 29.9`
-  - `Obesitas 2`: `>= 30`
+  - `Normal`: `18.5 - 24.9`
+  - `Kelebihan BB`: `25 - 29.9`
+  - `Obesitas`: `>= 30`
 
 Kategori status akhir:
 
-- `Risiko Tinggi`
+- `Beresiko`
   - jika ada hasil `Hipertensi 3`, `Bahaya`, atau `Diabetes`
-- `Risiko`
-  - jika ada hasil `Hipertensi 2`, `Tinggi`, `Prediabetes`, `Obesitas 1`, atau `Obesitas 2`
-- `Waspada`
-  - jika ada hasil `Normal Tinggi`, `Hipertensi 1`, `Waspada`, atau `Overweight`
+- `Perlu Perhatian`
+  - jika ada hasil `Hipertensi 2`, `Tinggi`, `Prediabetes`, `Obesitas`, `Normal Tinggi`, `Hipertensi 1`, `Waspada`, atau `Kelebihan BB`
 - `Normal`
   - jika semua hasil detail masih normal
 

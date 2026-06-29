@@ -127,7 +127,7 @@ const createCreatePemeriksaanSupabaseMock = () => {
   return { supabase, calls };
 };
 
-const createUpdatePemeriksaanSupabaseMock = () => {
+const createUpdatePemeriksaanSupabaseMock = (existingOverride = {}) => {
   const calls = {
     pemeriksaanUpdate: null,
     interpretasiUpdate: null
@@ -147,7 +147,8 @@ const createUpdatePemeriksaanSupabaseMock = () => {
     tinggi_badan: 170,
     interpretasi: {
       status_kesehatan: 'Normal'
-    }
+    },
+    ...existingOverride
   };
 
   const supabase = {
@@ -348,10 +349,13 @@ module.exports = [
         gula: 'Prediabetes',
         kol: 'Waspada',
         asam: 'Normal',
-        bmiStatus: 'Obesitas 1'
+        bmiStatus: 'Kelebihan BB'
       });
+      assert.equal(res.body.status_kesehatan, 'Perlu Perhatian');
+      assert.equal(res.body.pengecekan.status_kesehatan, 'Perlu Perhatian');
       assert.equal(res.body.pengecekan.detail.gula_darah.status, 'Prediabetes');
       assert.equal(res.body.pengecekan.detail.bmi_status.nilai, 27.8);
+      assert.equal(res.body.pengecekan.detail.bmi_status.status, 'Kelebihan BB');
       assert.equal(res.body.recommended[0].id_edukasi, 4);
     }
   },
@@ -520,10 +524,10 @@ module.exports = [
       await createPemeriksaan(req, res);
 
       assert.equal(res.statusCode, 201);
-      assert.equal(res.body.status, 'Risiko Tinggi');
+      assert.equal(res.body.status, 'Beresiko');
       assert.ok(calls.pemeriksaanInsert);
       assert.ok(calls.interpretasiInsert);
-      assert.equal(calls.interpretasiInsert[0].status_kesehatan, 'Risiko Tinggi');
+      assert.equal(calls.interpretasiInsert[0].status_kesehatan, 'Beresiko');
       assert.equal(res.body.rekomendasi[0].id_edukasi, 1);
       assert.equal(calls.pemeriksaanInsert[0].berat_badan, 81);
       assert.equal(calls.pemeriksaanInsert[0].tinggi_badan, 180);
@@ -556,7 +560,7 @@ module.exports = [
 
       assert.equal(res.statusCode, 201);
       assert.equal(calls.interpretasiInsert[0].kolesterol, 'Waspada');
-      assert.equal(calls.interpretasiInsert[0].status_kesehatan, 'Waspada');
+      assert.equal(calls.interpretasiInsert[0].status_kesehatan, 'Perlu Perhatian');
       assert.equal(res.body.detail.kol, 'Waspada');
     }
   },
@@ -586,14 +590,54 @@ module.exports = [
       assert.ok(calls.pemeriksaanUpdate);
       assert.ok(Math.abs(calls.pemeriksaanUpdate.bmi - 27.7777777778) < 0.0001);
       assert.deepEqual(calls.interpretasiUpdate, {
-        status_kesehatan: 'Risiko',
+        status_kesehatan: 'Perlu Perhatian',
         tekanan_darah: 'Normal Tinggi',
         gula_darah: 'Prediabetes',
         kolesterol: 'Waspada',
         asam_urat: 'Normal',
-        bmi_status: 'Obesitas 1'
+        bmi_status: 'Kelebihan BB'
       });
-      assert.equal(res.body.data.interpretasi.status_kesehatan, 'Risiko');
+      assert.equal(res.body.data.interpretasi.status_kesehatan, 'Perlu Perhatian');
+    }
+  },
+  {
+    name: 'updatePemeriksaan mengizinkan satu metrik tanpa berat badan',
+    async run() {
+      const { supabase, calls } = createUpdatePemeriksaanSupabaseMock({
+        sistolik: null,
+        diastolik: null,
+        gula_darah: null,
+        kolesterol: null,
+        asam_urat: null,
+        berat_badan: null,
+        tinggi_badan: null
+      });
+      const { updatePemeriksaan } = loadControllerWithSupabaseMock(supabase);
+
+      const req = {
+        params: { id: '10' },
+        user: { id: 7 },
+        body: {
+          gula_darah: 110
+        }
+      };
+      const res = createResponse();
+
+      await updatePemeriksaan(req, res);
+
+      assert.equal(res.statusCode, 200);
+      assert.equal(calls.pemeriksaanUpdate.gula_darah, 110);
+      assert.equal(calls.pemeriksaanUpdate.berat_badan, null);
+      assert.equal(calls.pemeriksaanUpdate.tinggi_badan, null);
+      assert.equal(calls.pemeriksaanUpdate.bmi, null);
+      assert.deepEqual(calls.interpretasiUpdate, {
+        status_kesehatan: 'Normal',
+        tekanan_darah: null,
+        gula_darah: 'Normal',
+        kolesterol: null,
+        asam_urat: null,
+        bmi_status: null
+      });
     }
   }
 ];
