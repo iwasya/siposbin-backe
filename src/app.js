@@ -14,6 +14,7 @@ const helmet = require('helmet');
 const { globalLimiter } = require('./middleware/rateLimiters');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const riwayatRoutes = require('./routes/riwayatRoutes');
 
 const app = express();
 app.use(helmet());
@@ -40,6 +41,7 @@ app.use('/api/statistik', statistikRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/riwayat', riwayatRoutes);
 
 app.get('/', (req, res) => {
   res.send('API is running 🚀');
