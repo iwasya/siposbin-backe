@@ -2,6 +2,33 @@
 ALTER TABLE pemeriksaan
   ADD COLUMN IF NOT EXISTS lingkar_perut NUMERIC;
 
+-- Fix an earlier wrong attempt where id_user was created as UUID.
+-- Safe only while the feature tables are empty; otherwise stop.
+DO $$
+DECLARE
+  penyakit_rows INTEGER := 0;
+  pengobatan_rows INTEGER := 0;
+  id_user_type TEXT;
+BEGIN
+  SELECT data_type INTO id_user_type
+  FROM information_schema.columns
+  WHERE table_schema = 'public'
+    AND table_name = 'riwayat_penyakit'
+    AND column_name = 'id_user';
+
+  IF id_user_type IS NOT NULL AND id_user_type <> 'integer' THEN
+    EXECUTE 'SELECT count(*) FROM riwayat_penyakit' INTO penyakit_rows;
+    EXECUTE 'SELECT count(*) FROM riwayat_pengobatan' INTO pengobatan_rows;
+
+    IF penyakit_rows = 0 AND pengobatan_rows = 0 THEN
+      DROP TABLE IF EXISTS riwayat_pengobatan;
+      DROP TABLE IF EXISTS riwayat_penyakit;
+    ELSE
+      RAISE EXCEPTION 'riwayat_penyakit.id_user is %, expected integer; backup data before migrating', id_user_type;
+    END IF;
+  END IF;
+END $$;
+
 -- Create riwayat_penyakit with INTEGER id_user matching users table
 CREATE TABLE IF NOT EXISTS riwayat_penyakit (
   id SERIAL PRIMARY KEY,
@@ -26,3 +53,5 @@ CREATE TABLE IF NOT EXISTS riwayat_pengobatan (
 
 CREATE INDEX IF NOT EXISTS idx_riwayat_pengobatan_user ON riwayat_pengobatan(id_user);
 CREATE INDEX IF NOT EXISTS idx_riwayat_pengobatan_penyakit ON riwayat_pengobatan(id_penyakit);
+
+NOTIFY pgrst, 'reload schema';
