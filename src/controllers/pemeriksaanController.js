@@ -26,8 +26,15 @@ const toOptionalPositiveMetricNumber = (value) => {
 const hasInputValue = (value) => value !== undefined && value !== null && value !== '';
 const pickInputValue = (...values) => values.find(hasInputValue);
 const pickRiwayatPenyakitInput = (body = {}) => {
-  if (body.riwayat_penyakit && typeof body.riwayat_penyakit === 'object') return body.riwayat_penyakit;
-  if (body.riwayat && typeof body.riwayat === 'object') return body.riwayat;
+  const raw = body.riwayat_penyakit ?? body.riwayat;
+
+  if (Array.isArray(raw)) {
+    // Filter incomplete/empty entries — frontend may send partial rows
+    const valid = raw.filter(item => item?.nama_penyakit?.trim());
+    return valid.length > 0 ? valid : null;
+  }
+
+  if (raw && typeof raw === 'object') return raw;
 
   return ['nama_penyakit', 'tanggal_diagnosis', 'status_penyakit', 'pengobatan'].some(key => body[key] !== undefined)
     ? body
@@ -899,7 +906,9 @@ exports.createPemeriksaan = async (req, res) => {
       bmi_status: bmiStatus
     });
     const riwayat_penyakit = riwayatPenyakitInput
-      ? await createRiwayatPenyakitRecord(id_user, riwayatPenyakitInput)
+      ? Array.isArray(riwayatPenyakitInput)
+        ? await Promise.all(riwayatPenyakitInput.map(item => createRiwayatPenyakitRecord(id_user, item)))
+        : await createRiwayatPenyakitRecord(id_user, riwayatPenyakitInput)
       : null;
 
     // ======================
