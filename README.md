@@ -275,6 +275,8 @@ Pada modul pemeriksaan:
 - berat dan tinggi badan bersifat opsional, tetapi jika diisi harus lebih dari `0`
 - metrik pemeriksaan numerik divalidasi agar tidak bernilai negatif
 - BMI dihitung otomatis jika `berat_badan` dan `tinggi_badan` sama-sama tersedia
+- `lingkar_perut` disimpan sebagai metrik opsional
+- `POST /api/pemeriksaan` bisa menerima `riwayat_penyakit` opsional untuk menyimpan riwayat penyakit dan pengobatan dalam satu alur input
 - interpretasi detail dihitung untuk tekanan darah, gula darah, kolesterol total, HDL, LDL, trigliserida, asam urat, dan BMI
 - status kesehatan akhir dihitung dari hasil interpretasi detail
 - `create` dan `update` pemeriksaan sama-sama menghitung ulang `BMI` dan memperbarui `interpretasi`

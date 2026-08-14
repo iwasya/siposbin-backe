@@ -1,9 +1,9 @@
--- Drop old tables if they exist (from previous attempt)
-DROP TABLE IF EXISTS riwayat_pengobatan;
-DROP TABLE IF EXISTS riwayat_penyakit;
+-- Add field from updated pemeriksaan form
+ALTER TABLE pemeriksaan
+  ADD COLUMN IF NOT EXISTS lingkar_perut NUMERIC;
 
 -- Create riwayat_penyakit with INTEGER id_user matching users table
-CREATE TABLE riwayat_penyakit (
+CREATE TABLE IF NOT EXISTS riwayat_penyakit (
   id SERIAL PRIMARY KEY,
   id_user INTEGER NOT NULL REFERENCES users(id_user) ON DELETE CASCADE,
   nama_penyakit TEXT NOT NULL,
@@ -11,10 +11,10 @@ CREATE TABLE riwayat_penyakit (
   status_penyakit TEXT NOT NULL CHECK (status_penyakit IN ('Masih dalam pengobatan', 'Kontrol rutin', 'Sudah sembuh'))
 );
 
-CREATE INDEX idx_riwayat_penyakit_user ON riwayat_penyakit(id_user);
+CREATE INDEX IF NOT EXISTS idx_riwayat_penyakit_user ON riwayat_penyakit(id_user);
 
 -- Create riwayat_pengobatan with INTEGER id_user and id_penyakit
-CREATE TABLE riwayat_pengobatan (
+CREATE TABLE IF NOT EXISTS riwayat_pengobatan (
   id SERIAL PRIMARY KEY,
   id_user INTEGER NOT NULL REFERENCES users(id_user) ON DELETE CASCADE,
   id_penyakit INTEGER NOT NULL REFERENCES riwayat_penyakit(id) ON DELETE CASCADE,
@@ -24,5 +24,5 @@ CREATE TABLE riwayat_pengobatan (
   alasan_tidak_patuh TEXT
 );
 
-CREATE INDEX idx_riwayat_pengobatan_user ON riwayat_pengobatan(id_user);
-CREATE INDEX idx_riwayat_pengobatan_penyakit ON riwayat_pengobatan(id_penyakit);
+CREATE INDEX IF NOT EXISTS idx_riwayat_pengobatan_user ON riwayat_pengobatan(id_user);
+CREATE INDEX IF NOT EXISTS idx_riwayat_pengobatan_penyakit ON riwayat_pengobatan(id_penyakit);

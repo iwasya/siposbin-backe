@@ -41,6 +41,10 @@ const routeSpecs = [
   { name: 'POST /api/profile/upload-photo', method: 'POST', path: '/api/profile/upload-photo', type: 'auth' },
   { name: 'PUT /api/profile/change-password', method: 'PUT', path: '/api/profile/change-password', type: 'auth' },
   { name: 'GET /api/statistik', method: 'GET', path: '/api/statistik', type: 'auth' },
+  { name: 'GET /api/riwayat', method: 'GET', path: '/api/riwayat', type: 'auth' },
+  { name: 'POST /api/riwayat', method: 'POST', path: '/api/riwayat', type: 'auth' },
+  { name: 'PUT /api/riwayat/:id', method: 'PUT', path: '/api/riwayat/1', type: 'auth' },
+  { name: 'DELETE /api/riwayat/:id', method: 'DELETE', path: '/api/riwayat/1', type: 'auth' },
   { name: 'POST /api/users', method: 'POST', path: '/api/users', type: 'role1' },
   { name: 'GET /api/users', method: 'GET', path: '/api/users', type: 'role1' },
   { name: 'DELETE /api/users/:id', method: 'DELETE', path: '/api/users/1', type: 'role1' },
@@ -62,6 +66,7 @@ const controllerMethods = {
   '../../src/controllers/pemeriksaanController.js': ['createPemeriksaan', 'getPemeriksaan', 'getPemeriksaanById', 'updatePemeriksaan', 'deletePemeriksaan'],
   '../../src/controllers/posbinduController.js': ['createPosbindu', 'getAllPosbindu', 'getPosbinduById', 'updatePosbindu', 'deletePosbindu'],
   '../../src/controllers/profileController.js': ['getProfile', 'updateProfile', 'uploadProfilePhoto', 'changePassword'],
+  '../../src/controllers/riwayatController.js': ['createRiwayatPenyakit', 'getRiwayatPenyakit', 'updateRiwayatPenyakit', 'deleteRiwayatPenyakit'],
   '../../src/controllers/statistikController.js': ['getStatistik'],
   '../../src/controllers/userController.js': ['createKader', 'getAllUsers', 'deleteUser', 'resetUserPassword', 'updateUser', 'saveFcmToken', 'testNotif']
 };
@@ -76,6 +81,7 @@ const routeModules = [
   { mount: '/api/edukasi', path: '../../src/routes/edukasiRoutes.js' },
   { mount: '/api/statistik', path: '../../src/routes/statistikRoutes.js' },
   { mount: '/api/profile', path: '../../src/routes/profileRoutes.js' },
+  { mount: '/api/riwayat', path: '../../src/routes/riwayatRoutes.js' },
   { mount: '/api/users', path: '../../src/routes/userRoutes.js' },
   { mount: '/api/admin', path: '../../src/routes/adminRoutes.js' }
 ];

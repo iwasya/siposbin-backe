@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 
 const controllerPath = require.resolve('../../src/controllers/pemeriksaanController');
+const riwayatControllerPath = require.resolve('../../src/controllers/riwayatController');
 const supabasePath = require.resolve('../../src/config/supabase');
 
 const createResponse = () => {
@@ -22,6 +23,7 @@ const createResponse = () => {
 
 const loadControllerWithSupabaseMock = (supabaseMock) => {
   delete require.cache[controllerPath];
+  delete require.cache[riwayatControllerPath];
   require.cache[supabasePath] = {
     id: supabasePath,
     filename: supabasePath,
@@ -35,7 +37,9 @@ const loadControllerWithSupabaseMock = (supabaseMock) => {
 const createCreatePemeriksaanSupabaseMock = () => {
   const calls = {
     pemeriksaanInsert: null,
-    interpretasiInsert: null
+    interpretasiInsert: null,
+    riwayatPenyakitInsert: null,
+    riwayatPengobatanInsert: null
   };
 
   const supabase = {
@@ -120,6 +124,56 @@ const createCreatePemeriksaanSupabaseMock = () => {
         };
       }
 
+      if (table === 'riwayat_penyakit') {
+        return {
+          insert(payload) {
+            calls.riwayatPenyakitInsert = payload;
+
+            return {
+              select() {
+                return {
+                  async single() {
+                    return {
+                      data: {
+                        id: 55,
+                        ...payload[0]
+                      },
+                      error: null
+                    };
+                  }
+                };
+              }
+            };
+          },
+          select() {
+            return {
+              eq() {
+                return this;
+              },
+              async single() {
+                return {
+                  data: {
+                    id: 55,
+                    ...calls.riwayatPenyakitInsert[0],
+                    riwayat_pengobatan: calls.riwayatPengobatanInsert || []
+                  },
+                  error: null
+                };
+              }
+            };
+          }
+        };
+      }
+
+      if (table === 'riwayat_pengobatan') {
+        return {
+          async insert(payload) {
+            calls.riwayatPengobatanInsert = payload;
+            return { error: null };
+          }
+        };
+      }
+
       throw new Error(`Unexpected table access: ${table}`);
     }
   };
@@ -148,6 +202,7 @@ const createUpdatePemeriksaanSupabaseMock = (existingOverride = {}) => {
     asam_urat: 6,
     berat_badan: 70,
     tinggi_badan: 170,
+    lingkar_perut: null,
     interpretasi: {
       status_kesehatan: 'Normal'
     },
@@ -505,6 +560,43 @@ module.exports = [
       assert.equal(calls.interpretasiInsert[0].gula_darah, 'Normal');
       assert.equal(calls.interpretasiInsert[0].tekanan_darah, null);
       assert.equal(calls.interpretasiInsert[0].bmi_status, null);
+    }
+  },
+  {
+    name: 'createPemeriksaan menyimpan riwayat penyakit opsional dalam satu alur',
+    async run() {
+      const { supabase, calls } = createCreatePemeriksaanSupabaseMock();
+      const { createPemeriksaan } = loadControllerWithSupabaseMock(supabase);
+
+      const req = {
+        user: { id: 7 },
+        body: {
+          gula_darah: 110,
+          lingkar_perut: 82,
+          riwayat_penyakit: {
+            nama_penyakit: 'Hipertensi',
+            tanggal_diagnosis: '2025-03-01',
+            status_penyakit: 'Masih dalam pengobatan',
+            pengobatan: [{
+              nama_obat: 'Amlodipine 5 mg',
+              masih_mengonsumsi_obat: true,
+              tingkat_kepatuhan: 'Kadang lupa',
+              alasan_tidak_patuh: 'Lupa minum obat'
+            }]
+          }
+        }
+      };
+      const res = createResponse();
+
+      await createPemeriksaan(req, res);
+
+      assert.equal(res.statusCode, 201);
+      assert.equal(calls.pemeriksaanInsert[0].lingkar_perut, 82);
+      assert.equal(calls.riwayatPenyakitInsert[0].id_user, 7);
+      assert.equal(calls.riwayatPenyakitInsert[0].nama_penyakit, 'Hipertensi');
+      assert.equal(calls.riwayatPengobatanInsert[0].nama_obat, 'Amlodipine 5 mg');
+      assert.equal(calls.riwayatPengobatanInsert[0].id_penyakit, 55);
+      assert.equal(res.body.riwayat_penyakit.id, 55);
     }
   },
   {

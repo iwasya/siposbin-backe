@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 
 const controllerPath = require.resolve('../../src/controllers/statistikController');
 const pemeriksaanControllerPath = require.resolve('../../src/controllers/pemeriksaanController');
+const riwayatControllerPath = require.resolve('../../src/controllers/riwayatController');
 const supabasePath = require.resolve('../../src/config/supabase');
 
 const createResponse = () => ({
@@ -20,6 +21,7 @@ const createResponse = () => ({
 const loadControllerWithSupabaseMock = (supabaseMock) => {
   delete require.cache[controllerPath];
   delete require.cache[pemeriksaanControllerPath];
+  delete require.cache[riwayatControllerPath];
   require.cache[supabasePath] = {
     id: supabasePath,
     filename: supabasePath,
@@ -47,6 +49,7 @@ const createStatistikSupabaseMock = () => {
     ldl: 135,
     trigliserida: 180,
     asam_urat: null,
+    lingkar_perut: 82,
     bmi: 27.7777777778,
     interpretasi: {
       status_kesehatan: 'Waspada',
@@ -108,6 +111,7 @@ module.exports = [
       assert.equal(res.body.pengecekan.status_kesehatan, 'Perlu Perhatian');
       assert.equal(res.body.pengecekan.status.kolesterol, 'Waspada');
       assert.equal(res.body.pengecekan.status.bmi_status, 'Kelebihan BB');
+      assert.deepEqual(res.body.lingkar_perut, [82]);
       assert.ok(res.body.pengecekan.detail.tekanan_darah);
       assert.ok(res.body.pengecekan.detail.kolesterol);
       assert.ok(res.body.pengecekan.detail.bmi_status);

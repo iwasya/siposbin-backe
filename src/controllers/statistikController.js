@@ -33,6 +33,7 @@ exports.getStatistik = async (req, res) => {
         ldl,
         trigliserida,
         asam_urat,
+        lingkar_perut,
         bmi,
         interpretasi (
           status_kesehatan,
@@ -69,6 +70,7 @@ exports.getStatistik = async (req, res) => {
     const ldl = rows.map(item => item.ldl);
     const trigliserida = rows.map(item => item.trigliserida);
     const asam_urat = rows.map(item => item.asam_urat);
+    const lingkar_perut = rows.map(item => item.lingkar_perut);
     const bmi = rows.map(item => item.bmi);
 
     const pengecekan = buildPengecekanByStatus(latestRow);
@@ -83,6 +85,7 @@ exports.getStatistik = async (req, res) => {
       ldl,
       trigliserida,
       asam_urat,
+      lingkar_perut,
       bmi,
       pengecekan
     });

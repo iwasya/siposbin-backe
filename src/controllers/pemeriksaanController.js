@@ -1,5 +1,11 @@
 const supabase = require('../config/supabase');
 const { formatToJakartaDateTime } = require('../utils/dateTime');
+const {
+  _helpers: {
+    createRiwayatPenyakitRecord,
+    normalizeRiwayatPenyakitInput
+  }
+} = require('./riwayatController');
 
 /* =========================
    VALIDATION
@@ -19,6 +25,14 @@ const toOptionalPositiveMetricNumber = (value) => {
 
 const hasInputValue = (value) => value !== undefined && value !== null && value !== '';
 const pickInputValue = (...values) => values.find(hasInputValue);
+const pickRiwayatPenyakitInput = (body = {}) => {
+  if (body.riwayat_penyakit && typeof body.riwayat_penyakit === 'object') return body.riwayat_penyakit;
+  if (body.riwayat && typeof body.riwayat === 'object') return body.riwayat;
+
+  return ['nama_penyakit', 'tanggal_diagnosis', 'status_penyakit', 'pengobatan'].some(key => body[key] !== undefined)
+    ? body
+    : null;
+};
 
 const parseOptionalPositiveMetricNumber = (value) => {
   if (!hasInputValue(value)) {
@@ -731,6 +745,9 @@ exports.createPemeriksaan = async (req, res) => {
     const asam_urat = pickInputValue(req.body.asam_urat, req.body.asamUrat);
     const berat_badan = pickInputValue(req.body.berat_badan, req.body.beratBadan);
     const tinggi_badan = pickInputValue(req.body.tinggi_badan, req.body.tinggiBadan);
+    const lingkar_perut = pickInputValue(req.body.lingkar_perut, req.body.lingkarPerut);
+    const riwayatPenyakitInput = pickRiwayatPenyakitInput(req.body);
+    if (riwayatPenyakitInput) normalizeRiwayatPenyakitInput(riwayatPenyakitInput);
 
     const id_user = req.user.id;
 
@@ -744,6 +761,7 @@ exports.createPemeriksaan = async (req, res) => {
     const parsedAsamUrat = parseOptionalPositiveMetricNumber(asam_urat);
     const parsedBeratBadan = parseOptionalPositiveMetricNumber(berat_badan);
     const parsedTinggiBadan = parseOptionalPositiveMetricNumber(tinggi_badan);
+    const parsedLingkarPerut = parseOptionalPositiveMetricNumber(lingkar_perut);
 
     if (
       !parsedSistolik.valid ||
@@ -755,7 +773,8 @@ exports.createPemeriksaan = async (req, res) => {
       !parsedTrigliserida.valid ||
       !parsedAsamUrat.valid ||
       !parsedBeratBadan.valid ||
-      !parsedTinggiBadan.valid
+      !parsedTinggiBadan.valid ||
+      !parsedLingkarPerut.valid
     ) {
       return res.status(400).json({ message: "Data harus angka valid dan lebih dari 0" });
     }
@@ -775,7 +794,8 @@ exports.createPemeriksaan = async (req, res) => {
       parsedTrigliserida.provided ||
       parsedAsamUrat.provided ||
       parsedBeratBadan.provided ||
-      parsedTinggiBadan.provided;
+      parsedTinggiBadan.provided ||
+      parsedLingkarPerut.provided;
 
     if (!hasAnyMetric) {
       return res.status(400).json({ message: "Minimal satu data pemeriksaan wajib diisi" });
@@ -791,6 +811,7 @@ exports.createPemeriksaan = async (req, res) => {
     const l = parsedLdl.value;
     const t = parsedTrigliserida.value;
     const a = parsedAsamUrat.value;
+    const lp = parsedLingkarPerut.value;
 
     // ======================
     // HITUNG
@@ -839,6 +860,7 @@ exports.createPemeriksaan = async (req, res) => {
         asam_urat: a,
         berat_badan: bb,
         tinggi_badan: tb,
+        lingkar_perut: lp,
         bmi,
         created_by: id_user
       }])
@@ -876,6 +898,9 @@ exports.createPemeriksaan = async (req, res) => {
       asam_urat: asam,
       bmi_status: bmiStatus
     });
+    const riwayat_penyakit = riwayatPenyakitInput
+      ? await createRiwayatPenyakitRecord(id_user, riwayatPenyakitInput)
+      : null;
 
     // ======================
     // RESPONSE FINAL
@@ -895,11 +920,13 @@ exports.createPemeriksaan = async (req, res) => {
         bmiStatus
       },
       rekomendasi: recommended || [],
-      pemeriksaan
+      pemeriksaan,
+      riwayat_penyakit
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const status = err.statusCode || 500;
+    res.status(status).json(status === 400 ? { message: err.message } : { error: err.message });
   }
 };
 
@@ -1068,6 +1095,8 @@ exports.updatePemeriksaan = async (req, res) => {
       asam_urat,
       berat_badan,
       tinggi_badan,
+      lingkar_perut,
+      lingkarPerut,
       jenis_kelamin = "pria"
     } = req.body;
 
@@ -1086,6 +1115,7 @@ exports.updatePemeriksaan = async (req, res) => {
         asam_urat,
         berat_badan,
         tinggi_badan,
+        lingkar_perut,
         interpretasi (
           status_kesehatan
         )
@@ -1122,6 +1152,8 @@ exports.updatePemeriksaan = async (req, res) => {
     const parsedAsamUrat = parseUpdatePositiveMetricNumber(asam_urat, existingPemeriksaan.asam_urat);
     const parsedBeratBadan = parseUpdatePositiveMetricNumber(berat_badan, existingPemeriksaan.berat_badan);
     const parsedTinggiBadan = parseUpdatePositiveMetricNumber(tinggi_badan, existingPemeriksaan.tinggi_badan);
+    const lingkarPerutInput = pickInputValue(lingkar_perut, lingkarPerut);
+    const parsedLingkarPerut = parseUpdatePositiveMetricNumber(lingkarPerutInput, existingPemeriksaan.lingkar_perut);
 
     if (
       !parsedSistolik.valid ||
@@ -1133,7 +1165,8 @@ exports.updatePemeriksaan = async (req, res) => {
       !parsedTrigliserida.valid ||
       !parsedAsamUrat.valid ||
       !parsedBeratBadan.valid ||
-      !parsedTinggiBadan.valid
+      !parsedTinggiBadan.valid ||
+      !parsedLingkarPerut.valid
     ) {
       return res.status(400).json({
         message: "Data pemeriksaan harus berupa angka valid dan lebih dari 0"
@@ -1185,6 +1218,7 @@ exports.updatePemeriksaan = async (req, res) => {
         asam_urat: parsedAsamUrat.value,
         berat_badan: parsedBeratBadan.value,
         tinggi_badan: parsedTinggiBadan.value,
+        lingkar_perut: parsedLingkarPerut.value,
         bmi
       })
       .eq('id_pemeriksaan', id)
