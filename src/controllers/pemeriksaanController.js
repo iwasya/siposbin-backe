@@ -737,8 +737,9 @@ exports.createPemeriksaan = async (req, res) => {
       jenis_kelamin = "pria",
       jenisKelamin
     } = req.body;
-    const sistolik = pickInputValue(req.body.sistolik, req.body.sistole, req.body.tekanan_sistolik);
-    const diastolik = pickInputValue(req.body.diastolik, req.body.diastole, req.body.tekanan_diastolik);
+    const td = req.body.tekanan_darah && typeof req.body.tekanan_darah === 'object' ? req.body.tekanan_darah : {};
+    const sistolik = pickInputValue(req.body.sistolik, req.body.sistole, req.body.tekanan_sistolik, td.sistolik, td.sistole);
+    const diastolik = pickInputValue(req.body.diastolik, req.body.diastole, req.body.tekanan_diastolik, td.diastolik, td.diastole);
     const gula_darah = pickInputValue(req.body.gula_darah, req.body.gulaDarah);
     const hdl = pickInputValue(req.body.hdl, req.body.hdl_kolesterol, req.body.hdlKolesterol);
     const ldl = pickInputValue(req.body.ldl, req.body.ldl_kolesterol, req.body.ldlKolesterol);
